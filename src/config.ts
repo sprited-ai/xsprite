@@ -19,7 +19,10 @@ export interface CharacterConfig {
     image: string;
     /** Where the reference gets pasted (the blank cell of the inference row). */
     inputSlot?: Slot;
-    /** Panel to extract after generation. Default: last (inference row). */
+    /** Exact cell grid of the inference row, in template coordinates.
+     * Preferred over panel auto-detection — no detection fuzz. */
+    grid?: { x: number; y: number; cellWidth: number; cellHeight: number; columns: number };
+    /** Panel to extract after generation (fallback when no grid). */
     row?: number;
   };
 

@@ -5,7 +5,7 @@ output: ../out/monet-qwen
 template:
   image: ../templates/spritedx-template-v3.png
   inputSlot: { x: 0, y: 352, width: 160, height: 256 }
-  row: 1
+  grid: { x: 160, y: 352, cellWidth: 160, cellHeight: 256, columns: 5 }
 model:
   provider: novita-qwen
 outputs:

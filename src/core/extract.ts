@@ -55,6 +55,10 @@ export interface ExtractOptions extends KeyOptions {
   row?: number;
   /** Leading cells to skip (e.g. a reference cell inside the panel). */
   skipRef?: number;
+  /** Explicit panel rect (in sheet coordinates) — skips auto-detection.
+   * Use when the sheet's backgrounds make detection ambiguous (e.g. a pasted
+   * reference photo); measure on the clean template and scale. */
+  panel?: Panel;
 }
 
 /** Direction sheet → 8 keyed sprites (5 generated + 3 mirrored). */
@@ -74,15 +78,20 @@ export function extractAnimation(sheet: RawImage, frameCount: number, opts: Extr
 }
 
 function extractCells(sheet: RawImage, count: number, opts: ExtractOptions): RawImage[] {
-  const panels = findPanels(sheet);
-  if (!panels.length) throw new Error("no sprite panel found (expected a wide light-gray region)");
-  const panel = panels[opts.row ?? panels.length - 1];
+  let panel = opts.panel;
+  if (!panel) {
+    const panels = findPanels(sheet);
+    if (!panels.length) throw new Error("no sprite panel found (expected a wide light-gray region)");
+    panel = panels[opts.row ?? panels.length - 1];
+  }
   const skip = opts.skipRef ?? 0;
   const total = count + skip;
-  const cw = Math.floor(panel.width / total);
   const cells: RawImage[] = [];
   for (let i = skip; i < total; i++) {
-    const cell = crop(sheet, panel.x + i * cw, panel.y, cw, panel.height);
+    // rounded per-cell boundaries — avoids floor() drift accumulating
+    const x0 = panel.x + Math.round((i * panel.width) / total);
+    const x1 = panel.x + Math.round(((i + 1) * panel.width) / total);
+    const cell = crop(sheet, x0, panel.y, x1 - x0, panel.height);
     cells.push(keyCell(cell, opts));
   }
   return cells;

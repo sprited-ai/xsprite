@@ -29,6 +29,11 @@ if (!cmd || !sheetPath) usage();
 if (cmd === "build") {
   const cfg = loadConfig(sheetPath);
   const template = await readImage(cfg.template.image);
+  // measure the extraction panel on the CLEAN template (before pasting a
+  // reference whose background could fuse with the panel), then scale to
+  // the generated sheet's dimensions
+  const cleanPanels = (await import("./core/extract.js")).findPanels(template);
+  const cleanPanel = cleanPanels[cfg.template.row ?? cleanPanels.length - 1];
   if (cfg.reference && cfg.template.inputSlot) {
     pasteIntoSlot(template, await readImage(cfg.reference), cfg.template.inputSlot);
   }
@@ -36,7 +41,16 @@ if (cmd === "build") {
   console.log(`generating "${cfg.name}" via ${cfg.model?.provider ?? "gemini"}...`);
   const sheet = await generateSheet(template, prompt, cfg.model ?? {});
   if (cfg.outputs?.sheet) await writePng(join(cfg.output, cfg.outputs.sheet), sheet);
-  const sprites = extractDirections(sheet, { row: cfg.template.row });
+  const s = sheet.width / template.width;
+  const g = cfg.template.grid;
+  const rect = g
+    ? { x: g.x, y: g.y, width: g.cellWidth * g.columns, height: g.cellHeight }
+    : cleanPanel;
+  const panel = rect && {
+    x: Math.round(rect.x * s), y: Math.round(rect.y * s),
+    width: Math.round(rect.width * s), height: Math.round(rect.height * s),
+  };
+  const sprites = extractDirections(sheet, { panel });
   for (const d of SPIN_ORDER) await writePng(join(cfg.output, `${d}.png`), sprites[d]);
   const gif = cfg.outputs?.gif ?? "spin.gif";
   writeBytes(join(cfg.output, gif), turnaroundGif(sprites));

@@ -1,0 +1,16 @@
+# xsprite character config — `npx tsx src/cli.ts build characters/lisa.yaml`
+name: lisa
+description: "Character is Lisa and she is a fairy."
+output: ../out/lisa
+
+template:
+  image: ../templates/spritedx-template-v3.png
+  inputSlot: { x: 0, y: 352, width: 160, height: 256 }
+  row: 1
+
+model:
+  provider: gemini    # needs GEMINI_API_KEY; or novita-seedream / novita-qwen
+
+outputs:
+  gif: spin.gif
+  sheet: sheet.png

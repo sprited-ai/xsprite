@@ -1,0 +1,13 @@
+# test config: reference-driven, via Novita qwen-image-edit
+name: monet-qwen
+reference: ../experiments/001-template-8dir/monet-ref.png
+output: ../out/monet-qwen
+template:
+  image: ../templates/spritedx-template-v3.png
+  inputSlot: { x: 0, y: 352, width: 160, height: 256 }
+  row: 1
+model:
+  provider: novita-qwen
+outputs:
+  gif: spin.gif
+  sheet: sheet.png

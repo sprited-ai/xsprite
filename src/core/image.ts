@@ -80,3 +80,28 @@ export function centerOnCanvas(img: RawImage, size: number): RawImage {
   }
   return out;
 }
+
+/** Paste src onto dst at (x, y), respecting src alpha. */
+export function paste(dst: RawImage, src: RawImage, x: number, y: number): void {
+  for (let sy = 0; sy < src.height; sy++) {
+    const dy = y + sy;
+    if (dy < 0 || dy >= dst.height) continue;
+    for (let sx = 0; sx < src.width; sx++) {
+      const dx = x + sx;
+      if (dx < 0 || dx >= dst.width) continue;
+      const s = (sy * src.width + sx) * 4, d = (dy * dst.width + dx) * 4;
+      const a = src.data[s + 3] / 255;
+      dst.data[d] = src.data[s] * a + dst.data[d] * (1 - a);
+      dst.data[d + 1] = src.data[s + 1] * a + dst.data[d + 1] * (1 - a);
+      dst.data[d + 2] = src.data[s + 2] * a + dst.data[d + 2] * (1 - a);
+      dst.data[d + 3] = Math.max(dst.data[d + 3], src.data[s + 3]);
+    }
+  }
+}
+
+/** Scale src to fit a slot (preserve aspect), centered. */
+export function pasteIntoSlot(dst: RawImage, src: RawImage, slot: { x: number; y: number; width: number; height: number }): void {
+  const f = Math.min(slot.width / src.width, slot.height / src.height);
+  const scaled = scaleNearest(src, f);
+  paste(dst, scaled, slot.x + ((slot.width - scaled.width) >> 1), slot.y + ((slot.height - scaled.height) >> 1));
+}

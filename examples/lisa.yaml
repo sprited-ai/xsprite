@@ -1,10 +1,10 @@
-# xsprite character config — `npx tsx src/cli.ts build examples/lisa/lisa.yaml`
+# xsprite character config — `npx tsx src/cli.ts build examples/lisa.yaml`
 name: lisa
 description: "Character is Lisa and she is a fairy."
 output: .
 
 template:
-  image: ../../templates/xsprite-8dir-v1.png
+  image: ../templates/xsprite-8dir-v1.png
   inputSlot: { x: 32, y: 352, width: 160, height: 256 }
   grid: { x: 192, y: 352, cellWidth: 160, cellHeight: 256, columns: 5 }
 

@@ -8,7 +8,7 @@ Made by [Sprited](https://spritedx.com) — this is the workflow behind the
 character sheets we've been posting. People kept asking "mind sharing your
 workflow?" — this repo is the answer.
 
-![turnaround](examples/lisa/lisa.turntable.webp)
+![turnaround](examples/lisa.turntable.webp)
 
 ## The technique
 
@@ -34,7 +34,7 @@ pnpm install
 cp .env.example .env   # add your GEMINI_API_KEY
 
 # character config → generate (NBP) → extract → key → spritesheet + turntable
-npx tsx src/cli.ts build examples/lisa/lisa.yaml
+npx tsx src/cli.ts build examples/lisa.yaml
 
 # already have a filled sheet? extract directly
 npx tsx src/cli.ts extract sheet.png --row 1 -o out/my-character
@@ -43,9 +43,10 @@ npx tsx src/cli.ts extract sheet.png --row 1 -o out/my-character
 npx tsx src/cli.ts extract-anim walk-sheet.png --frames 8 --fps 8 -o out/walk-S
 ```
 
-Each example folder is self-contained: the config, its reference, and the
-flat outputs it produces (`<name>.spritesheet.png`, `<name>.turntable.webp`).
-Copy one to start your own character.
+`examples/` is flat: each character is a config (`<name>.yaml`), its
+reference (`<name>.reference.png`), and the outputs it produces
+(`<name>.spritesheet.png`, `<name>.turntable.webp`, `<name>.entity.json`).
+Copy a yaml to start your own character.
 
 The pipeline core (`src/core`) is pure TypeScript on `ImageData`-shaped
 buffers — no Node APIs — so the same code runs in the browser; only file IO

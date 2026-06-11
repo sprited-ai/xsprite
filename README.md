@@ -54,6 +54,10 @@ Early research, moving fast. Current experiments:
 
 Roadmap: walk-cycle templates, a proper `xsprite` CLI, MCP server.
 
+## Why open source?
+
+See [docs/why-oss.md](docs/why-oss.md).
+
 ## License
 
 MIT

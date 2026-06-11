@@ -11,7 +11,6 @@ import { extractDirections, extractAnimation, SPIN_ORDER } from "./core/extract.
 import { centerOnCanvas } from "./core/image.js";
 import { makeSpriteSheet } from "./core/sheet.js";
 import { makeEntity } from "./core/entity.js";
-import { renderPreviewHtml } from "./node/preview.js";
 import { writeFileSync } from "node:fs";
 import { readImage, writePng, writeAnimatedWebp } from "./node/io.js";
 import { loadConfig } from "./config.js";
@@ -66,8 +65,7 @@ if (cmd === "build") {
   await writeAnimatedWebp(join(cfg.output, `${cfg.name}.turntable.webp`), ordered, 6);
   const entity = makeEntity(cfg.name, ordered[0].width, ordered[0].height);
   writeFileSync(join(cfg.output, `${cfg.name}.entity.json`), JSON.stringify(entity, null, 2) + "\n");
-  writeFileSync(join(cfg.output, `${cfg.name}.preview.html`), renderPreviewHtml(entity));
-  console.log(`"${cfg.name}" -> ${cfg.output}/${cfg.name}.{spritesheet.png,turntable.webp,entity.json,preview.html}`);
+  console.log(`"${cfg.name}" -> ${cfg.output}/${cfg.name}.{spritesheet.png,turntable.webp,entity.json}`);
   process.exit(0);
 }
 

@@ -1,6 +1,7 @@
 {
-  "id": "blue-dress-58228f6e",
+  "id": "blue-dress-5fdb3a7b",
   "name": "blue-dress",
+  "seed": 1608202875,
   "kind": "humanoid",
   "initialState": "idle",
   "textureSize": [

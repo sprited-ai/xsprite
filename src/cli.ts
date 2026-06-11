@@ -7,8 +7,9 @@
  */
 import { parseArgs } from "node:util";
 import { join } from "node:path";
-import { extractDirections, extractAnimation, SPIN_ORDER } from "./core/extract.js";
-import { centerOnCanvas } from "./core/image.js";
+import { extractDirections, extractAnimation, SPIN_ORDER, GENERATED_DIRECTIONS, MIRRORED, type Direction } from "./core/extract.js";
+import { centerOnCanvas, createImage, paste, flipX, type RawImage } from "./core/image.js";
+import { toonoutMatting, hasReplicateToken } from "./node/matting.js";
 import { makeSpriteSheet } from "./core/sheet.js";
 import { makeEntity } from "./core/entity.js";
 import { writeFileSync } from "node:fs";
@@ -82,14 +83,14 @@ if (cmd === "build" || cmd === "gen" || cmd === "generate") {
     const named = rest[0] !== undefined && !rest[0].startsWith("-");
     cfg = configFromFlags(named ? rest[0] : undefined, named ? rest.slice(1) : rest);
   }
-  const template = await readImage(cfg.template.image);
+  const template = await readImage(cfg.template!.image);
   // measure the extraction panel on the CLEAN template (before pasting a
   // reference whose background could fuse with the panel), then scale to
   // the generated sheet's dimensions
   const cleanPanels = (await import("./core/extract.js")).findPanels(template);
-  const cleanPanel = cleanPanels[cfg.template.row ?? cleanPanels.length - 1];
-  if (cfg.reference && cfg.template.inputSlot) {
-    pasteIntoSlot(template, await readImage(cfg.reference), cfg.template.inputSlot);
+  const cleanPanel = cleanPanels[cfg.template!.row ?? cleanPanels.length - 1];
+  if (cfg.reference && cfg.template!.inputSlot) {
+    pasteIntoSlot(template, await readImage(cfg.reference), cfg.template!.inputSlot);
   }
   const prompt = defaultPrompt(Boolean(cfg.reference), cfg.description);
   const { seed } = cfg;
@@ -102,7 +103,7 @@ if (cmd === "build" || cmd === "gen" || cmd === "generate") {
     progress.done(`${cfg.name ?? "unnamed"} · generated`);
   }
   const s = sheet.width / template.width;
-  const g = cfg.template.grid;
+  const g = cfg.template!.grid;
   const rect = g
     ? { x: g.x, y: g.y, width: g.cellWidth * g.columns, height: g.cellHeight }
     : cleanPanel;
@@ -110,7 +111,29 @@ if (cmd === "build" || cmd === "gen" || cmd === "generate") {
     x: Math.round(rect.x * s), y: Math.round(rect.y * s),
     width: Math.round(rect.width * s), height: Math.round(rect.height * s),
   };
-  const sprites = extractDirections(sheet, { panel });
+  let useToonout = cfg.matting === "toonout";
+  if (useToonout && !hasReplicateToken()) {
+    console.error("warning: matting: toonout requested but no REPLICATE_API_TOKEN found — falling back to the built-in color keyer (lower edge quality on hair/translucency)");
+    useToonout = false;
+  }
+  let sprites: Record<Direction, RawImage>;
+  if (useToonout) {
+    const inset = 4;
+    const rawCells = extractDirections(sheet, { panel, raw: true, inset });
+    const rawList = GENERATED_DIRECTIONS.map((d) => rawCells[d]);
+    console.error("matting via sprited/birefnet-toonout (cold boot can take ~2min)...");
+    const matted = await toonoutMatting(rawList);
+    const pad = (img: RawImage): RawImage => {
+      const padded = createImage(img.width + 2 * inset, img.height + 2 * inset, [0, 0, 0, 0]);
+      paste(padded, img, inset, inset);
+      return padded;
+    };
+    sprites = {} as Record<Direction, RawImage>;
+    GENERATED_DIRECTIONS.forEach((d, i) => { sprites[d] = pad(matted[i]); });
+    for (const [dst, src] of Object.entries(MIRRORED)) sprites[dst as Direction] = flipX(sprites[src as Direction]);
+  } else {
+    sprites = extractDirections(sheet, { panel });
+  }
   const ordered = SPIN_ORDER.map((d) => sprites[d]);
   // no name given: show the model its creation, let it pick the name
   const name = cfg.name

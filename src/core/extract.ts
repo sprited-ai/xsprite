@@ -63,6 +63,9 @@ export interface ExtractOptions extends KeyOptions {
    * grid-line/border contamination), restored as transparent padding after.
    * Output cell size is unchanged. Default 4. */
   inset?: number;
+  /** Skip keying and padding — return raw inset-cropped cells (w-2*inset).
+   * For external matting (e.g. toonout endpoint); pad afterwards. */
+  raw?: boolean;
 }
 
 /** Direction sheet → 8 keyed sprites (5 generated + 3 mirrored). */
@@ -100,6 +103,10 @@ function extractCells(sheet: RawImage, count: number, opts: ExtractOptions): Raw
     // inset before keying so cell borders/grid lines can't contaminate,
     // then restore size with transparent padding
     const inner = crop(sheet, x0 + inset, panel.y + inset, w - 2 * inset, h - 2 * inset);
+    if (opts.raw) {
+      cells.push(inner);
+      continue;
+    }
     const keyed = keyCell(inner, opts);
     const padded = createImage(w, h, [0, 0, 0, 0]);
     paste(padded, keyed, inset, inset);

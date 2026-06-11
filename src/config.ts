@@ -54,6 +54,11 @@ export interface CharacterConfig {
     envKey?: string;
   };
 
+  /** Background removal: "floodfill" (default — fast, dependency-free,
+   * browser-parity) or "toonout" (BiRefNet anime matting via the Replicate
+   * endpoint; needs REPLICATE_API_TOKEN; best edge quality). */
+  matting?: "floodfill" | "toonout";
+
   outputs?: {
     /** Keep the raw filled sheet: true → <name>.sheet.png, or a filename. */
     sheet?: string | boolean;

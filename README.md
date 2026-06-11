@@ -29,7 +29,13 @@ preserving the template layout. Seedream 4.0 / Qwen-Image-Edit comparisons
 
 ## Quick start
 
-One command (needs a [Gemini API key](https://aistudio.google.com/apikey)):
+One command, zero config (needs a [Gemini API key](https://aistudio.google.com/apikey)):
+
+```sh
+GEMINI_API_KEY=... npx @sprited/xsprite gen char
+```
+
+That invents a character on the spot. Name it and steer the look:
 
 ```sh
 GEMINI_API_KEY=... npx @sprited/xsprite build fairy -d "A small forest fairy with green wings."

@@ -25,7 +25,8 @@ const [cmd, sheetPath, ...rest] = process.argv.slice(2);
 const TURNTABLE_FPS = 2.4;
 
 function usage(): never {
-  console.error('usage: xsprite build <name> [-d "description"] [-r reference.png] [--seed N] [-o dir] [--sheet]');
+  console.error('usage: xsprite gen char [name] [-d "description"] [-r reference.png] [--seed N] [-o dir] [--sheet]');
+  console.error('       xsprite build <name> [flags as above]');
   console.error("       xsprite build <name.xsprite.yaml|json>");
   console.error("       xsprite extract <sheet.png> [--row N] [--skip-ref N] -o <dir>");
   console.error("       xsprite extract-anim <sheet.png> --frames N [--row N] [--skip-ref N] [--fps N] [--canvas 256] -o <dir>");
@@ -62,8 +63,16 @@ function configFromFlags(name: string, args: string[]): ResolvedConfig {
   }, process.cwd());
 }
 
-if (cmd === "build") {
-  const cfg = /\.(ya?ml|json)$/.test(sheetPath) ? loadConfig(sheetPath) : configFromFlags(sheetPath, rest);
+if (cmd === "build" || cmd === "gen" || cmd === "generate") {
+  let cfg: ResolvedConfig;
+  if (cmd === "build") {
+    cfg = /\.(ya?ml|json)$/.test(sheetPath) ? loadConfig(sheetPath) : configFromFlags(sheetPath, rest);
+  } else {
+    // gen char[acter] [name] — everything defaults, flags optional
+    if (!/^char(acter)?$/.test(sheetPath)) usage();
+    const named = rest[0] !== undefined && !rest[0].startsWith("-");
+    cfg = configFromFlags(named ? rest[0] : "character", named ? rest.slice(1) : rest);
+  }
   const template = await readImage(cfg.template.image);
   // measure the extraction panel on the CLEAN template (before pasting a
   // reference whose background could fuse with the panel), then scale to

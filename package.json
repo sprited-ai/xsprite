@@ -1,8 +1,11 @@
 {
-  "name": "xsprite",
+  "name": "@sprited/xsprite",
   "version": "0.1.0",
   "description": "Generate 8-direction game character sprites with template-guided image models",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "bin": {
     "xsprite": "./dist/cli.js"
@@ -11,7 +14,8 @@
     ".": "./dist/core/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "templates"
   ],
   "scripts": {
     "build": "tsup src/cli.ts src/core/index.ts --format esm --dts --clean",

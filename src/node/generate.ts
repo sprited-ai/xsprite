@@ -1,9 +1,9 @@
 /** Model providers: composed template in → filled sheet out. */
 import { readFileSync, existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { join, dirname } from "node:path";
+import { join } from "node:path";
 import sharp from "sharp";
 import type { RawImage } from "../core/image.js";
+import { PACKAGE_ROOT } from "./pkg.js";
 
 export type Provider = "gemini" | "novita-seedream" | "novita-qwen";
 
@@ -17,8 +17,6 @@ const DEFAULT_ENV: Record<Provider, string> = {
   "novita-seedream": "NOVITA_API_KEY",
   "novita-qwen": "NOVITA_API_KEY",
 };
-
-const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 function apiKey(envKey: string): string {
   if (process.env[envKey]) return process.env[envKey]!;

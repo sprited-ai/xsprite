@@ -1,9 +1,4 @@
 # photo-reference-driven character via NBP
 name: blue-dress
 reference: ./blue-dress.reference.png
-output: .
-template:
-  image: ../templates/xsprite-8dir-v1.png
-  inputSlot: { x: 32, y: 352, width: 160, height: 256 }
-  grid: { x: 192, y: 352, cellWidth: 160, cellHeight: 256, columns: 5 }
 outputs: { sheet: true }

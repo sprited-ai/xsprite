@@ -48,6 +48,7 @@ export interface GenerateOptions {
   provider?: Provider;
   model?: string;
   envKey?: string;
+  seed?: number;
 }
 
 export async function generateSheet(template: RawImage, prompt: string, opts: GenerateOptions = {}): Promise<RawImage> {
@@ -68,7 +69,7 @@ export async function generateSheet(template: RawImage, prompt: string, opts: Ge
             { inline_data: { mime_type: "image/png", data: b64 } },
             { text: prompt },
           ] }],
-          generationConfig: { responseModalities: ["IMAGE"] },
+          generationConfig: { responseModalities: ["IMAGE"], ...(opts.seed !== undefined && { seed: opts.seed }) },
         }),
       });
     if (!res.ok) throw new Error(`gemini ${res.status}: ${(await res.text()).slice(0, 300)}`);
@@ -89,6 +90,7 @@ export async function generateSheet(template: RawImage, prompt: string, opts: Ge
         images: [`data:image/png;base64,${b64}`],
         size: `${template.width}x${template.height}`,
         watermark: false,
+        ...(opts.seed !== undefined && { seed: opts.seed }),
       }),
     });
     if (!res.ok) throw new Error(`seedream ${res.status}: ${(await res.text()).slice(0, 300)}`);
@@ -100,7 +102,10 @@ export async function generateSheet(template: RawImage, prompt: string, opts: Ge
   const submit = await fetch(`https://api.novita.ai/v3/async/${model}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-    body: JSON.stringify({ prompt, image: `data:image/png;base64,${b64}`, output_format: "png" }),
+    body: JSON.stringify({
+      prompt, image: `data:image/png;base64,${b64}`, output_format: "png",
+      ...(opts.seed !== undefined && { seed: opts.seed }),
+    }),
   });
   if (!submit.ok) throw new Error(`qwen ${submit.status}: ${(await submit.text()).slice(0, 300)}`);
   const { task_id } = await submit.json() as { task_id: string };

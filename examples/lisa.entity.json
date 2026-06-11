@@ -1,6 +1,7 @@
 {
-  "id": "lisa-24340553",
+  "id": "lisa-1e9c5693",
   "name": "lisa",
+  "seed": 513562259,
   "kind": "humanoid",
   "initialState": "idle",
   "textureSize": [

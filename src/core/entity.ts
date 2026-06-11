@@ -7,6 +7,8 @@ import { SPIN_ORDER, MIRRORED } from "./extract.js";
 export interface EntityDescriptor {
   id: string;
   name: string;
+  /** Generation seed the sheet was sampled with — feed back via config `seed` to reproduce. */
+  seed: number;
   kind: string;
   initialState: string;
   textureSize: [number, number];
@@ -17,12 +19,13 @@ export interface EntityDescriptor {
   media: Record<string, string>;
 }
 
-export function makeEntity(name: string, cellWidth: number, cellHeight: number): EntityDescriptor {
-  const suffix = Array.from({ length: 4 }, () =>
-    Math.floor(Math.random() * 256).toString(16).padStart(2, "0")).join("");
+export function makeEntity(name: string, cellWidth: number, cellHeight: number, seed: number): EntityDescriptor {
+  // id derives from the seed, so a same-seed rebuild is byte-identical
+  const suffix = (seed >>> 0).toString(16).padStart(8, "0");
   return {
     id: `${name}-${suffix}`,
     name,
+    seed,
     kind: "humanoid",
     initialState: "idle",
     textureSize: [cellWidth, cellHeight],

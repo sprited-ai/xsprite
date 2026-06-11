@@ -13,6 +13,9 @@ export interface CharacterConfig {
   reference?: string;
   /** Extra guidance, e.g. "Character is Lisa and she is a fairy". */
   description?: string;
+  /** Generation seed. A number reproduces a build; "random" or omitted rolls
+   * a fresh one. The resolved value lands in <name>.entity.json. */
+  seed?: number | "random";
   output: string;
 
   template: {

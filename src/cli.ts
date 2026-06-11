@@ -41,11 +41,12 @@ if (cmd === "build") {
     pasteIntoSlot(template, await readImage(cfg.reference), cfg.template.inputSlot);
   }
   const prompt = defaultPrompt(Boolean(cfg.reference), cfg.description);
+  const seed = typeof cfg.seed === "number" ? cfg.seed : Math.floor(Math.random() * 2 ** 31);
   const provider = cfg.model?.provider ?? "gemini";
-  const progress = startProgress(`${cfg.name} · ${provider}`, provider === "gemini" ? 45_000 : 60_000);
+  const progress = startProgress(`${cfg.name} · ${provider} · seed ${seed}`, provider === "gemini" ? 45_000 : 60_000);
   let sheet;
   try {
-    sheet = await generateSheet(template, prompt, cfg.model ?? {});
+    sheet = await generateSheet(template, prompt, { ...cfg.model, seed });
   } finally {
     progress.done(`${cfg.name} · generated`);
   }
@@ -63,7 +64,7 @@ if (cmd === "build") {
   const ordered = SPIN_ORDER.map((d) => sprites[d]);
   await writePng(join(cfg.output, `${cfg.name}.spritesheet.png`), makeSpriteSheet(ordered));
   await writeAnimatedWebp(join(cfg.output, `${cfg.name}.turntable.webp`), ordered, 6);
-  const entity = makeEntity(cfg.name, ordered[0].width, ordered[0].height);
+  const entity = makeEntity(cfg.name, ordered[0].width, ordered[0].height, seed);
   writeFileSync(join(cfg.output, `${cfg.name}.entity.json`), JSON.stringify(entity, null, 2) + "\n");
   console.log(`"${cfg.name}" -> ${cfg.output}/${cfg.name}.{spritesheet.png,turntable.webp,entity.json}`);
   process.exit(0);

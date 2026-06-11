@@ -48,6 +48,10 @@ reference (`<name>.reference.png`), and the outputs it produces
 (`<name>.spritesheet.png`, `<name>.turntable.webp`, `<name>.entity.json`).
 Copy an `.xsprite.yaml` to start your own character.
 
+Builds are seeded: put `seed: 12345` in the config to reproduce a build, omit
+it (or `seed: random`) to roll a fresh one. The seed actually used is recorded
+in `<name>.entity.json`.
+
 The pipeline core (`src/core`) is pure TypeScript on `ImageData`-shaped
 buffers — no Node APIs — so the same code runs in the browser; only file IO
 (`src/node`, backed by sharp) is Node-specific. Template filling currently

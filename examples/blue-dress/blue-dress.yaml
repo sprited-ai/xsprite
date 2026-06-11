@@ -1,6 +1,6 @@
 # photo-reference-driven character via NBP
 name: blue-dress
-reference: ../../references/example-reference-photo.png
+reference: ./reference.png
 output: ../../out/blue-dress
 template:
   image: ../../templates/spritedx-template-v3.png

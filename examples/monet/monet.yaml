@@ -1,6 +1,6 @@
 # reference-driven character via NBP
 name: monet
-reference: ../../experiments/001-template-8dir/monet-ref.png
+reference: ./reference.png
 output: ../../out/monet
 template:
   image: ../../templates/spritedx-template-v3.png

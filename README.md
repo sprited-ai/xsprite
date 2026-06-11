@@ -8,7 +8,7 @@ Made by [Sprited](https://spritedx.com) — this is the workflow behind the
 character sheets we've been posting. People kept asking "mind sharing your
 workflow?" — this repo is the answer.
 
-![turnaround](examples/lisa.turntable.webp)
+![turnaround](https://raw.githubusercontent.com/sprited-ai/xsprite/main/examples/monet.turntable.webp)
 
 ## The technique
 
@@ -105,4 +105,5 @@ See [docs/why-oss.md](docs/why-oss.md).
 
 ## License
 
-MIT
+MIT — except the Monet character assets in `examples/` (`monet.*`), which are
+Sprited's character and for demonstration only. See [LICENSE](LICENSE).

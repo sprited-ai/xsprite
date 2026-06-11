@@ -28,8 +28,10 @@ export async function writeAnimatedWebp(path: string, frames: RawImage[], fps: n
     sharp(Buffer.from(f.data.buffer, f.data.byteOffset, f.data.byteLength), {
       raw: { width, height, channels: 4 },
     }).png().toBuffer()));
+  // sharp applies a scalar delay to the first frame only — spell it out per frame
+  const delay = frames.map(() => Math.round(1000 / fps));
   await sharp(pngs, { join: { animated: true } })
-    .webp({ lossless: true, delay: Math.round(1000 / fps), loop: 0 })
+    .webp({ lossless: true, delay, loop: 0 })
     .toFile(path);
 }
 

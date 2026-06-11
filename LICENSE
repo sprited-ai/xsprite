@@ -19,3 +19,11 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+Exception: the Monet character assets in examples/ (monet.reference.png and
+the monet.* files generated from it) are not covered by the license above.
+They are Sprited's character and are included for demonstration only — please
+don't reuse them in your own projects. Everything else (code, templates, the
+other example assets) is plain MIT.

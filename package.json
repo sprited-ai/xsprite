@@ -1,6 +1,6 @@
 {
   "name": "@sprited/xsprite",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Generate 8-direction game character sprites with template-guided image models",
   "license": "MIT",
   "publishConfig": {

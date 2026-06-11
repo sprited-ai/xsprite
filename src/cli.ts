@@ -20,6 +20,9 @@ import { pasteIntoSlot } from "./core/image.js";
 
 const [cmd, sheetPath, ...rest] = process.argv.slice(2);
 
+// ~417ms per direction — slow enough to actually look at each pose
+const TURNTABLE_FPS = 2.4;
+
 function usage(): never {
   console.error("usage: xsprite build <name.xsprite.yaml|json>");
   console.error("       xsprite extract <sheet.png> [--row N] [--skip-ref N] -o <dir>");
@@ -63,7 +66,7 @@ if (cmd === "build") {
   const sprites = extractDirections(sheet, { panel });
   const ordered = SPIN_ORDER.map((d) => sprites[d]);
   await writePng(join(cfg.output, `${cfg.name}.spritesheet.png`), makeSpriteSheet(ordered));
-  await writeAnimatedWebp(join(cfg.output, `${cfg.name}.turntable.webp`), ordered, 6);
+  await writeAnimatedWebp(join(cfg.output, `${cfg.name}.turntable.webp`), ordered, TURNTABLE_FPS);
   const entity = makeEntity(cfg.name, ordered[0].width, ordered[0].height, seed);
   writeFileSync(join(cfg.output, `${cfg.name}.entity.json`), JSON.stringify(entity, null, 2) + "\n");
   console.log(`"${cfg.name}" -> ${cfg.output}/${cfg.name}.{spritesheet.png,turntable.webp,entity.json}`);
@@ -93,7 +96,7 @@ if (cmd === "extract") {
   const sprites = extractDirections(sheet, opts);
   const ordered = SPIN_ORDER.map((d) => sprites[d]);
   await writePng(join(v.output, "spritesheet.png"), makeSpriteSheet(ordered));
-  await writeAnimatedWebp(join(v.output, "turntable.webp"), ordered, 6);
+  await writeAnimatedWebp(join(v.output, "turntable.webp"), ordered, TURNTABLE_FPS);
   console.log(`spritesheet.png [${SPIN_ORDER.join(" ")}] + turntable.webp -> ${v.output} (SW/W/NW mirrored)`);
 } else if (cmd === "extract-anim") {
   if (!v.frames) usage();

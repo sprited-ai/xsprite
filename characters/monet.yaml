@@ -1,13 +1,9 @@
-# test config: reference-driven, via Novita qwen-image-edit
-name: monet-qwen
+# reference-driven character via NBP
+name: monet
 reference: ../experiments/001-template-8dir/monet-ref.png
-output: ../out/monet-qwen
+output: ../out/monet
 template:
   image: ../templates/spritedx-template-v3.png
   inputSlot: { x: 0, y: 352, width: 160, height: 256 }
   grid: { x: 160, y: 352, cellWidth: 160, cellHeight: 256, columns: 5 }
-model:
-  provider: novita-qwen
-outputs:
-  gif: spin.gif
-  sheet: sheet.png
+outputs: { gif: spin.gif, sheet: sheet.png }

@@ -8,9 +8,6 @@ template:
   inputSlot: { x: 0, y: 352, width: 160, height: 256 }
   grid: { x: 160, y: 352, cellWidth: 160, cellHeight: 256, columns: 5 }
 
-model:
-  provider: gemini    # needs GEMINI_API_KEY; or novita-seedream / novita-qwen
-
 outputs:
   gif: spin.gif
   sheet: sheet.png

@@ -22,9 +22,10 @@ workflow?" — this repo is the answer.
    background with a dependency-light floodfill keyer (no GPU matting needed
    on flat template backgrounds), assemble turnaround GIFs / animated WebP.
 
-Works with any image model that preserves canvas layout and follows visual
-examples — we use Nano Banana Pro (`gemini-3-pro-image-preview`); Seedream 4.0
-and Qwen-Image-Edit results are in the experiment notes.
+We use Nano Banana Pro (`gemini-3-pro-image-preview`) — currently the only
+model that reliably does both reference-fill and new-character creation while
+preserving the template layout. Seedream 4.0 / Qwen-Image-Edit comparisons
+(partial successes, failure modes) are in the experiment notes.
 
 ## Quick start
 

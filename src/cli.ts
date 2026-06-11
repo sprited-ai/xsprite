@@ -9,6 +9,7 @@ import { parseArgs } from "node:util";
 import { join } from "node:path";
 import { extractDirections, extractAnimation, SPIN_ORDER } from "./core/extract.js";
 import { centerOnCanvas } from "./core/image.js";
+import { makeSpriteSheet } from "./core/sheet.js";
 import { readImage, writePng, writeAnimatedWebp } from "./node/io.js";
 import { loadConfig } from "./config.js";
 import { generateSheet, defaultPrompt } from "./node/generate.js";
@@ -50,9 +51,10 @@ if (cmd === "build") {
     width: Math.round(rect.width * s), height: Math.round(rect.height * s),
   };
   const sprites = extractDirections(sheet, { panel });
-  for (const d of SPIN_ORDER) await writePng(join(cfg.output, `${d}.png`), sprites[d]);
-  await writeAnimatedWebp(join(cfg.output, "spin.webp"), SPIN_ORDER.map((d) => sprites[d]), 6);
-  console.log(`"${cfg.name}" -> ${cfg.output} (8 sprites + spin.webp)`);
+  const ordered = SPIN_ORDER.map((d) => sprites[d]);
+  await writePng(join(cfg.output, "spritesheet.png"), makeSpriteSheet(ordered));
+  await writeAnimatedWebp(join(cfg.output, "turntable.webp"), ordered, 6);
+  console.log(`"${cfg.name}" -> ${cfg.output} (spritesheet.png [${SPIN_ORDER.join(" ")}] + turntable.webp)`);
   process.exit(0);
 }
 
@@ -77,15 +79,16 @@ const opts = {
 
 if (cmd === "extract") {
   const sprites = extractDirections(sheet, opts);
-  for (const d of SPIN_ORDER) await writePng(join(v.output, `${d}.png`), sprites[d]);
-  await writeAnimatedWebp(join(v.output, "spin.webp"), SPIN_ORDER.map((d) => sprites[d]), 6);
-  console.log(`8 sprites -> ${v.output} (+ spin.webp) (SW/W/NW mirrored)`);
+  const ordered = SPIN_ORDER.map((d) => sprites[d]);
+  await writePng(join(v.output, "spritesheet.png"), makeSpriteSheet(ordered));
+  await writeAnimatedWebp(join(v.output, "turntable.webp"), ordered, 6);
+  console.log(`spritesheet.png [${SPIN_ORDER.join(" ")}] + turntable.webp -> ${v.output} (SW/W/NW mirrored)`);
 } else if (cmd === "extract-anim") {
   if (!v.frames) usage();
   const size = v.canvas !== undefined ? Number(v.canvas) : 256;
   const fps = v.fps !== undefined ? Number(v.fps) : 8;
   const frames = extractAnimation(sheet, Number(v.frames), opts).map((f) => centerOnCanvas(f, size));
-  for (const [i, f] of frames.entries()) await writePng(join(v.output, `frame-${String(i).padStart(2, "0")}.png`), f);
+  await writePng(join(v.output, "spritesheet.png"), makeSpriteSheet(frames));
   await writeAnimatedWebp(join(v.output, "anim.webp"), frames, fps);
-  console.log(`${frames.length} frames -> ${v.output} (${size}x${size}, anim.webp @${fps}fps)`);
+  console.log(`${frames.length} frames -> ${v.output} (spritesheet.png + anim.webp @${fps}fps)`);
 } else usage();

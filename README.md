@@ -8,7 +8,7 @@ Made by [Sprited](https://spritedx.com) — this is the workflow behind the
 character sheets we've been posting. People kept asking "mind sharing your
 workflow?" — this repo is the answer.
 
-![turnaround](examples/lisa/output/spin.webp)
+![turnaround](examples/lisa/output/turntable.webp)
 
 ## The technique
 
@@ -33,7 +33,7 @@ preserving the template layout. Seedream 4.0 / Qwen-Image-Edit comparisons
 pnpm install
 cp .env.example .env   # add your GEMINI_API_KEY
 
-# character config → generate (NBP) → extract → key → 8 sprites + spin.webp
+# character config → generate (NBP) → extract → key → spritesheet + turntable
 npx tsx src/cli.ts build examples/lisa/lisa.yaml
 
 # already have a filled sheet? extract directly

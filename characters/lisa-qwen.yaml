@@ -1,0 +1,10 @@
+# new-character creation (no reference) via novita-qwen
+name: lisa-qwen
+description: "Character is Lisa and she is a fairy with translucent wings and a green dress."
+output: ../out/lisa-qwen
+template:
+  image: ../templates/spritedx-template-v3.png
+  grid: { x: 160, y: 352, cellWidth: 160, cellHeight: 256, columns: 5 }
+model:
+  provider: novita-qwen
+outputs: { gif: spin.gif, sheet: sheet.png }

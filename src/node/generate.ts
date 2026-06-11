@@ -114,13 +114,12 @@ export async function generateSheet(template: RawImage, prompt: string, opts: Ge
 }
 
 export function defaultPrompt(hasReference: boolean, description?: string): string {
+  // Terse prompts, proven with NBP (see blog "SpriteDX - New Horizon Work").
+  // Heavier instructions make weaker editors recompose the canvas instead of
+  // filling blanks — keep these minimal and let the template carry the spec.
   const base = hasReference
-    ? "Fill in the bottom row: draw the character from the bottom-left reference " +
-      "in each labeled direction slot, matching the art style, proportions and " +
-      "palette of the example row above. Keep the slot backgrounds plain gray. " +
-      "Do not modify the example row."
-    : "On the bottom row, create a new character in each labeled direction slot, " +
-      "matching the art style and proportions of the example row above. Keep the " +
-      "slot backgrounds plain gray. Do not modify the example row.";
+    ? "fill in bottom characters. don't touch the top half."
+    : "on the bottom create a new character while keeping top half the same. " +
+      "The bottom character should be similar in style with top character's vibe.";
   return description ? `${base}\n\n${description}` : base;
 }

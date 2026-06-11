@@ -12,6 +12,7 @@ import { centerOnCanvas } from "./core/image.js";
 import { makeSpriteSheet } from "./core/sheet.js";
 import { readImage, writePng, writeAnimatedWebp } from "./node/io.js";
 import { loadConfig } from "./config.js";
+import { startProgress } from "./node/progress.js";
 import { generateSheet, defaultPrompt } from "./node/generate.js";
 import { pasteIntoSlot } from "./core/image.js";
 
@@ -38,8 +39,14 @@ if (cmd === "build") {
     pasteIntoSlot(template, await readImage(cfg.reference), cfg.template.inputSlot);
   }
   const prompt = defaultPrompt(Boolean(cfg.reference), cfg.description);
-  console.log(`generating "${cfg.name}" via ${cfg.model?.provider ?? "gemini"}...`);
-  const sheet = await generateSheet(template, prompt, cfg.model ?? {});
+  const provider = cfg.model?.provider ?? "gemini";
+  const progress = startProgress(`${cfg.name} · ${provider}`, provider === "gemini" ? 45_000 : 60_000);
+  let sheet;
+  try {
+    sheet = await generateSheet(template, prompt, cfg.model ?? {});
+  } finally {
+    progress.done(`${cfg.name} · generated`);
+  }
   if (cfg.outputs?.sheet) await writePng(join(cfg.output, cfg.outputs.sheet), sheet);
   const s = sheet.width / template.width;
   const g = cfg.template.grid;

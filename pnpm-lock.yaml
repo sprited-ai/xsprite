@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      gifenc:
-        specifier: ^1.0.3
-        version: 1.0.3
       sharp:
         specifier: ^0.35.1
         version: 0.35.1
@@ -912,9 +909,6 @@ packages:
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
 
-  gifenc@1.0.3:
-    resolution: {integrity: sha512-xdr6AdrfGBcfzncONUOlXMBuc5wJDtOueE3c5rdG0oNgtINLD+f2iFZltrBRZYzACRbKr+mSVU/x98zv2u3jmw==}
-
   joycon@3.1.1:
     resolution: {integrity: sha512-34wB/Y7MW7bzjKRjUKTa46I2Z7eV62Rkhva+KkopW7Qvv/OSWBqvkSY7vusOPrNuZcUG3tApvdVgNB8POj3SPw==}
     engines: {node: '>=10'}
@@ -1807,8 +1801,6 @@ snapshots:
 
   fsevents@2.3.3:
     optional: true
-
-  gifenc@1.0.3: {}
 
   joycon@3.1.1: {}
 

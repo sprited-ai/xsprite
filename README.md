@@ -8,7 +8,7 @@ Made by [Sprited](https://spritedx.com) — this is the workflow behind the
 character sheets we've been posting. People kept asking "mind sharing your
 workflow?" — this repo is the answer.
 
-![turnaround](examples/lisa/output/spin.gif)
+![turnaround](examples/lisa/output/spin.webp)
 
 ## The technique
 
@@ -20,7 +20,7 @@ workflow?" — this repo is the answer.
    SW/W/NW. Halves the consistency burden. (Caveat: asymmetric details flip.)
 3. **Harvest.** Auto-detect the sprite panel, slice cells, remove the
    background with a dependency-light floodfill keyer (no GPU matting needed
-   on flat template backgrounds), assemble turnaround GIFs / animated WebP.
+   on flat template backgrounds), assemble animated WebP turnarounds.
 
 We use Nano Banana Pro (`gemini-3-pro-image-preview`) — currently the only
 model that reliably does both reference-fill and new-character creation while

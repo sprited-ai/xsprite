@@ -10,6 +10,8 @@ import { join } from "node:path";
 import { extractDirections, extractAnimation, SPIN_ORDER } from "./core/extract.js";
 import { centerOnCanvas } from "./core/image.js";
 import { makeSpriteSheet } from "./core/sheet.js";
+import { makeEntity } from "./core/entity.js";
+import { writeFileSync } from "node:fs";
 import { readImage, writePng, writeAnimatedWebp } from "./node/io.js";
 import { loadConfig } from "./config.js";
 import { startProgress } from "./node/progress.js";
@@ -61,7 +63,9 @@ if (cmd === "build") {
   const ordered = SPIN_ORDER.map((d) => sprites[d]);
   await writePng(join(cfg.output, `${cfg.name}.spritesheet.png`), makeSpriteSheet(ordered));
   await writeAnimatedWebp(join(cfg.output, `${cfg.name}.turntable.webp`), ordered, 6);
-  console.log(`"${cfg.name}" -> ${cfg.output}/${cfg.name}.{spritesheet.png,turntable.webp} [${SPIN_ORDER.join(" ")}]`);
+  const entity = makeEntity(cfg.name, ordered[0].width, ordered[0].height);
+  writeFileSync(join(cfg.output, `${cfg.name}.entity.json`), JSON.stringify(entity, null, 2) + "\n");
+  console.log(`"${cfg.name}" -> ${cfg.output}/${cfg.name}.{spritesheet.png,turntable.webp,entity.json}`);
   process.exit(0);
 }
 

@@ -1,0 +1,51 @@
+{
+  "id": "monet-dca3a596",
+  "name": "monet",
+  "kind": "humanoid",
+  "initialState": "idle",
+  "textureSize": [
+    160,
+    256
+  ],
+  "directions": {
+    "order": [
+      "S",
+      "SE",
+      "E",
+      "NE",
+      "N",
+      "NW",
+      "W",
+      "SW"
+    ],
+    "mirrored": [
+      "SW",
+      "W",
+      "NW"
+    ]
+  },
+  "spritesheet": {
+    "texture": "monet.spritesheet.png",
+    "cellWidth": 160,
+    "cellHeight": 256
+  },
+  "states": {
+    "idle": {
+      "animation": "idle",
+      "nextState": "idle"
+    }
+  },
+  "animations": {
+    "idle": {
+      "texture": "monet.spritesheet.png",
+      "directional": true,
+      "frames": [
+        0
+      ],
+      "loopCount": 0
+    }
+  },
+  "media": {
+    "turntable": "monet.turntable.webp"
+  }
+}

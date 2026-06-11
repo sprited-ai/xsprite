@@ -1,0 +1,51 @@
+{
+  "id": "lisa-aac1a851",
+  "name": "lisa",
+  "kind": "humanoid",
+  "initialState": "idle",
+  "textureSize": [
+    160,
+    256
+  ],
+  "directions": {
+    "order": [
+      "S",
+      "SE",
+      "E",
+      "NE",
+      "N",
+      "NW",
+      "W",
+      "SW"
+    ],
+    "mirrored": [
+      "SW",
+      "W",
+      "NW"
+    ]
+  },
+  "spritesheet": {
+    "texture": "lisa.spritesheet.png",
+    "cellWidth": 160,
+    "cellHeight": 256
+  },
+  "states": {
+    "idle": {
+      "animation": "idle",
+      "nextState": "idle"
+    }
+  },
+  "animations": {
+    "idle": {
+      "texture": "lisa.spritesheet.png",
+      "directional": true,
+      "frames": [
+        0
+      ],
+      "loopCount": 0
+    }
+  },
+  "media": {
+    "turntable": "lisa.turntable.webp"
+  }
+}

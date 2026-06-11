@@ -54,7 +54,8 @@ if (cmd === "build") {
   for (const d of SPIN_ORDER) await writePng(join(cfg.output, `${d}.png`), sprites[d]);
   const gif = cfg.outputs?.gif ?? "spin.gif";
   writeBytes(join(cfg.output, gif), turnaroundGif(sprites));
-  console.log(`"${cfg.name}" -> ${cfg.output} (8 sprites + ${gif})`);
+  await writeAnimatedWebp(join(cfg.output, "spin.webp"), SPIN_ORDER.map((d) => sprites[d]), 6);
+  console.log(`"${cfg.name}" -> ${cfg.output} (8 sprites + ${gif} + spin.webp)`);
   process.exit(0);
 }
 
@@ -81,8 +82,11 @@ const opts = {
 if (cmd === "extract") {
   const sprites = extractDirections(sheet, opts);
   for (const d of SPIN_ORDER) await writePng(join(v.output, `${d}.png`), sprites[d]);
-  if (v.gif) writeBytes(join(v.output, v.gif), turnaroundGif(sprites));
-  console.log(`8 sprites -> ${v.output}${v.gif ? ` (+ ${v.gif})` : ""} (SW/W/NW mirrored)`);
+  if (v.gif) {
+    writeBytes(join(v.output, v.gif), turnaroundGif(sprites));
+    await writeAnimatedWebp(join(v.output, "spin.webp"), SPIN_ORDER.map((d) => sprites[d]), 6);
+  }
+  console.log(`8 sprites -> ${v.output}${v.gif ? ` (+ ${v.gif}, spin.webp)` : ""} (SW/W/NW mirrored)`);
 } else if (cmd === "extract-anim") {
   if (!v.frames) usage();
   const size = v.canvas !== undefined ? Number(v.canvas) : 256;

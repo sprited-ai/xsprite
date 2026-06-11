@@ -8,7 +8,7 @@ Made by [Sprited](https://spritedx.com) — this is the workflow behind the
 character sheets we've been posting. People kept asking "mind sharing your
 workflow?" — this repo is the answer.
 
-![turnaround](experiments/001-template-8dir/harvested/v2-fairy/spin.gif)
+![turnaround](samples/fairy/spin.gif)
 
 ## The technique
 
@@ -29,19 +29,22 @@ and Qwen-Image-Edit results are in the experiment notes.
 ## Quick start
 
 ```
-# fill a template via Gemini API
-python experiments/001-template-8dir/run_nbp.py template.png -o out/filled.png
+pnpm install
 
-# harvest a filled sheet → 8 keyed sprites + spinning turnaround GIF
-python experiments/001-template-8dir/harvest_v2.py out/filled.png \
-    --row 1 -o harvested/my-character --gif spin.gif
+# filled direction sheet → 8 keyed sprites + spinning turnaround GIF
+npx tsx src/cli.ts extract sheet.png --row 1 --gif spin.gif -o out/my-character
 
-# harvest an animation strip → entity-ready 256x256 animated WebP
-python experiments/001-template-8dir/walk_harvest.py walk-sheet.png \
-    --frames 8 --fps 8 -o harvested/walk-S
+# animation strip → frames + animated WebP (+ GIF preview)
+npx tsx src/cli.ts extract-anim walk-sheet.png --frames 8 --fps 8 -o out/walk-S
 ```
 
-Needs Python 3.10+, Pillow, NumPy, SciPy, and a `GEMINI_API_KEY`.
+The pipeline core (`src/core`) is pure TypeScript on `ImageData`-shaped
+buffers — no Node APIs — so the same code runs in the browser; only file IO
+(`src/node`, backed by sharp) is Node-specific. Template filling currently
+goes through the Gemini API (`experiments/001-template-8dir/run_nbp.py`,
+needs `GEMINI_API_KEY`) — a TS port is next.
+
+The original Python lab scripts live on in `experiments/` as research notes.
 
 ## Status
 

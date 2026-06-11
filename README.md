@@ -8,7 +8,7 @@ Made by [Sprited](https://spritedx.com) — this is the workflow behind the
 character sheets we've been posting. People kept asking "mind sharing your
 workflow?" — this repo is the answer.
 
-![turnaround](examples/lisa/output/turntable.webp)
+![turnaround](examples/lisa/lisa.turntable.webp)
 
 ## The technique
 
@@ -43,8 +43,9 @@ npx tsx src/cli.ts extract sheet.png --row 1 -o out/my-character
 npx tsx src/cli.ts extract-anim walk-sheet.png --frames 8 --fps 8 -o out/walk-S
 ```
 
-Each example folder pairs the config with what it produces — copy one to
-start your own character.
+Each example folder is self-contained: the config, its reference, and the
+flat outputs it produces (`<name>.spritesheet.png`, `<name>.turntable.webp`).
+Copy one to start your own character.
 
 The pipeline core (`src/core`) is pure TypeScript on `ImageData`-shaped
 buffers — no Node APIs — so the same code runs in the browser; only file IO

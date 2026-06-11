@@ -33,7 +33,8 @@ export interface CharacterConfig {
   };
 
   outputs?: {
-    sheet?: string;      // keep the raw filled sheet
+    /** Keep the raw filled sheet: true → <name>.sheet.png, or a filename. */
+    sheet?: string | boolean;
   };
 }
 

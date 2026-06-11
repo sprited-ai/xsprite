@@ -1,7 +1,7 @@
 # xsprite character config — `npx tsx src/cli.ts build examples/lisa/lisa.yaml`
 name: lisa
 description: "Character is Lisa and she is a fairy."
-output: ../../out/lisa
+output: .
 
 template:
   image: ../../templates/spritedx-template-v3.png

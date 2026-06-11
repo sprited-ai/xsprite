@@ -47,7 +47,7 @@ if (cmd === "build") {
   } finally {
     progress.done(`${cfg.name} · generated`);
   }
-  if (cfg.outputs?.sheet) await writePng(join(cfg.output, cfg.outputs.sheet), sheet);
+  if (cfg.outputs?.sheet) await writePng(join(cfg.output, cfg.outputs.sheet === true ? `${cfg.name}.sheet.png` : cfg.outputs.sheet), sheet);
   const s = sheet.width / template.width;
   const g = cfg.template.grid;
   const rect = g
@@ -59,9 +59,9 @@ if (cmd === "build") {
   };
   const sprites = extractDirections(sheet, { panel });
   const ordered = SPIN_ORDER.map((d) => sprites[d]);
-  await writePng(join(cfg.output, "spritesheet.png"), makeSpriteSheet(ordered));
-  await writeAnimatedWebp(join(cfg.output, "turntable.webp"), ordered, 6);
-  console.log(`"${cfg.name}" -> ${cfg.output} (spritesheet.png [${SPIN_ORDER.join(" ")}] + turntable.webp)`);
+  await writePng(join(cfg.output, `${cfg.name}.spritesheet.png`), makeSpriteSheet(ordered));
+  await writeAnimatedWebp(join(cfg.output, `${cfg.name}.turntable.webp`), ordered, 6);
+  console.log(`"${cfg.name}" -> ${cfg.output}/${cfg.name}.{spritesheet.png,turntable.webp} [${SPIN_ORDER.join(" ")}]`);
   process.exit(0);
 }
 

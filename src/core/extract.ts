@@ -2,7 +2,7 @@
  * (harvest_v2.py / walk_harvest.py): auto-detect the light-gray sprite panel,
  * split into cells, key each cell; for direction sheets, mirror SE/E/NE into
  * SW/W/NW so 5 generated views become 8. */
-import { crop, flipX, type RawImage } from "./image.js";
+import { crop, flipX, createImage, paste, type RawImage } from "./image.js";
 import { keyCell, type KeyOptions } from "./keyer.js";
 
 export const GENERATED_DIRECTIONS = ["S", "SE", "E", "NE", "N"] as const;
@@ -59,6 +59,10 @@ export interface ExtractOptions extends KeyOptions {
    * Use when the sheet's backgrounds make detection ambiguous (e.g. a pasted
    * reference photo); measure on the clean template and scale. */
   panel?: Panel;
+  /** Edge inset: crop this many px off each cell side before keying (kills
+   * grid-line/border contamination), restored as transparent padding after.
+   * Output cell size is unchanged. Default 4. */
+  inset?: number;
 }
 
 /** Direction sheet → 8 keyed sprites (5 generated + 3 mirrored). */
@@ -87,12 +91,19 @@ function extractCells(sheet: RawImage, count: number, opts: ExtractOptions): Raw
   const skip = opts.skipRef ?? 0;
   const total = count + skip;
   const cells: RawImage[] = [];
+  const inset = opts.inset ?? 4;
   for (let i = skip; i < total; i++) {
     // rounded per-cell boundaries — avoids floor() drift accumulating
     const x0 = panel.x + Math.round((i * panel.width) / total);
     const x1 = panel.x + Math.round(((i + 1) * panel.width) / total);
-    const cell = crop(sheet, x0, panel.y, x1 - x0, panel.height);
-    cells.push(keyCell(cell, opts));
+    const w = x1 - x0, h = panel.height;
+    // inset before keying so cell borders/grid lines can't contaminate,
+    // then restore size with transparent padding
+    const inner = crop(sheet, x0 + inset, panel.y + inset, w - 2 * inset, h - 2 * inset);
+    const keyed = keyCell(inner, opts);
+    const padded = createImage(w, h, [0, 0, 0, 0]);
+    paste(padded, keyed, inset, inset);
+    cells.push(padded);
   }
   return cells;
 }

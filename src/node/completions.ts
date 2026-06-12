@@ -1,8 +1,8 @@
-/** Shell completion scripts, printed by `sprited completion <shell>`.
+/** Shell completion scripts, printed by `sprute completion <shell>`.
  * Static strings — the CLI surface is small enough that keeping these in
  * sync by hand beats pulling in a completion framework. */
 
-export const ZSH = `_sprited() {
+export const ZSH = `_sprute() {
   local -a commands
   commands=(
     'gen:generate a character (gen char [name])'
@@ -13,7 +13,7 @@ export const ZSH = `_sprited() {
     'completion:print a shell completion script'
   )
   if (( CURRENT == 2 )); then
-    _describe -t commands 'sprited command' commands
+    _describe -t commands 'sprute command' commands
     return
   fi
   local -a genflags
@@ -71,10 +71,10 @@ export const ZSH = `_sprited() {
       ;;
   esac
 }
-compdef _sprited sprited
+compdef _sprute sprute
 `;
 
-export const BASH = `_sprited() {
+export const BASH = `_sprute() {
   local cur prev cmd
   cur=\${COMP_WORDS[COMP_CWORD]}
   prev=\${COMP_WORDS[COMP_CWORD-1]}
@@ -106,5 +106,5 @@ export const BASH = `_sprited() {
     *) COMPREPLY=($(compgen -f -- "$cur")) ;;
   esac
 }
-complete -F _sprited sprited
+complete -F _sprute sprute
 `;

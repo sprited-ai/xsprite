@@ -1,6 +1,6 @@
-/** Node entry of the "sprited/toonout" subpath. Browser bundlers get
+/** Node entry of the "sprute/toonout" subpath. Browser bundlers get
  * src/web/toonout.ts via the exports "browser" condition; this side runs on
- * onnxruntime-node with the ~/.cache/sprited model download. */
+ * onnxruntime-node with the ~/.cache/sprute model download. */
 import type { RawImage } from "../core/image.js";
 import { localToonoutMatting, hasLocalToonout } from "./matting-local.js";
 

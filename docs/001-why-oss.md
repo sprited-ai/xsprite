@@ -44,7 +44,7 @@ and it was the right call there too.
 
 [spritedx.com](https://spritedx.com) — the hosted, integrated experience:
 generation queue, character library, animation states, billing, no setup.
-xsprite is the workshop; spritedx is the store. If you'd rather run scripts
+sprute is the workshop; spritedx is the store. If you'd rather run scripts
 and bring your own API keys, this repo is genuinely enough. If you want
 one-click characters, that's what we sell.
 

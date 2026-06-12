@@ -1,6 +1,6 @@
 {
-  "name": "sprited",
-  "version": "0.3.0",
+  "name": "sprute",
+  "version": "0.4.0",
   "description": "Generate 8-direction game character sprites with template-guided image models",
   "license": "MIT",
   "publishConfig": {
@@ -8,7 +8,7 @@
   },
   "type": "module",
   "bin": {
-    "sprited": "./dist/cli.js"
+    "sprute": "./dist/cli.js"
   },
   "exports": {
     ".": "./dist/core/index.js",
@@ -42,7 +42,7 @@
     "vite": "^8.0.16",
     "vitest": "^2.1.0"
   },
-  "repository": "github:sprited-ai/sprited",
+  "repository": "github:sprited-ai/sprute",
   "keywords": [
     "sprites",
     "game-assets",

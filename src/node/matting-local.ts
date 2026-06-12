@@ -1,6 +1,6 @@
 /** Local BiRefNet-ToonOut matting in Node — onnxruntime-node, no Python, no
  * network after the first run. The fp16 ONNX lives on HF under
- * sprited/birefnet-toonout-onnx and is downloaded once to ~/.cache/sprited.
+ * sprited/birefnet-toonout-onnx and is downloaded once to ~/.cache/sprute.
  * onnxruntime-node is an optionalDependency; when it (or the download) is
  * unavailable the caller falls back to the Replicate endpoint / floodfill.
  * Pixel pre/post processing is shared with the browser glue via
@@ -17,7 +17,7 @@ const MODEL_URL = "https://huggingface.co/sprited/birefnet-toonout-onnx/resolve/
 const MODEL_FILE = "birefnet-toonout-fp16.onnx";
 
 function cacheDir(): string {
-  return process.env.SPRITED_CACHE_DIR ?? join(homedir(), ".cache", "sprited");
+  return process.env.SPRUTE_CACHE_DIR ?? join(homedir(), ".cache", "sprute");
 }
 
 let ortPromise: Promise<any> | undefined;

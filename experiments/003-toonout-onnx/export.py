@@ -1,5 +1,5 @@
 # Export joelseytre/toonout (BiRefNet swin_v1_l fine-tune) to ONNX.
-# One-time offline tooling — the sprited CLI consumes the resulting .onnx
+# One-time offline tooling — the sprute CLI consumes the resulting .onnx
 # via onnxruntime-node; no Python at user runtime.
 #
 #   .venv/bin/python export.py

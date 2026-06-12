@@ -1,5 +1,5 @@
 // Run a lisa cell through the local ONNX matting and write the result for
-// eyeballing. SPRITED_CACHE_DIR=out npx tsx verify.mts
+// eyeballing. SPRUTE_CACHE_DIR=out npx tsx verify.mts
 import { readImage, writePng } from "../../src/node/io.js";
 import { extractAnimation } from "../../src/core/extract.js";
 import { compositeOn } from "../../src/core/image.js";

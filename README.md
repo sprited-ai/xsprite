@@ -1,4 +1,4 @@
-# sprited
+# sprute
 
 Open workflow for generating **8-direction game character sprites** from a
 single reference image, using template-guided image models (Nano Banana Pro
@@ -8,7 +8,7 @@ Made by [Sprited](https://spritedx.com) — this is the workflow behind the
 character sheets we've been posting. People kept asking "mind sharing your
 workflow?" — this repo is the answer.
 
-![turnaround](https://raw.githubusercontent.com/sprited-ai/sprited/main/examples/monet.turntable.webp)
+![turnaround](https://raw.githubusercontent.com/sprited-ai/sprute/main/examples/monet.turntable.webp)
 
 ## The technique
 
@@ -32,7 +32,7 @@ preserving the template layout. Seedream 4.0 / Qwen-Image-Edit comparisons
 One command, zero config (needs a [Gemini API key](https://aistudio.google.com/apikey)):
 
 ```sh
-GEMINI_API_KEY=... npx sprited gen char
+GEMINI_API_KEY=... npx sprute gen char
 ```
 
 That invents a character on the spot, filed as `char-001` (then `char-002`,
@@ -40,24 +40,24 @@ and so on — whatever's next in the output directory). Pass your own name and
 steer the look:
 
 ```sh
-GEMINI_API_KEY=... npx sprited build fairy -d "A small forest fairy with green wings."
+GEMINI_API_KEY=... npx sprute build fairy -d "A small forest fairy with green wings."
 ```
 
 Have a reference image? Add `-r ./fairy.png` — or omit `-d` entirely and let
-the reference carry the look. Flag builds also drop a `fairy.sprited.yaml`
+the reference carry the look. Flag builds also drop a `fairy.sprute.yaml`
 next to the outputs with the name and seed baked in, so any one-off build can
 be re-run exactly. The same file is what you'd write by hand for a
 config-first workflow:
 
 ```yaml
-# fairy.sprited.yaml
+# fairy.sprute.yaml
 name: fairy
 description: "A small forest fairy with green wings."
 reference: ./fairy.png   # optional — omit to let the model invent the look
 ```
 
 ```sh
-GEMINI_API_KEY=... npx sprited build fairy.sprited.yaml
+GEMINI_API_KEY=... npx sprute build fairy.sprute.yaml
 ```
 
 Either way the call composes the bundled 8-direction template, generates via
@@ -68,7 +68,7 @@ Nano Banana Pro, extracts and keys the sprites, and writes:
 - `fairy.concept.png` — the reference cell: for invented characters the model
   draws a full concept render there; for reference builds it's your reference
 - `fairy.entity.json` — sprite metadata (directions, states, seed)
-- `fairy.sprited.yaml` — flag builds only: the config that reproduces this build
+- `fairy.sprute.yaml` — flag builds only: the config that reproduces this build
 
 After generation the views go back to the image model itself, laid out as a
 labeled 3x3 compass grid: *"any errors? fix them and report the changes"*.
@@ -79,8 +79,8 @@ report is printed. `--max-fixes N` sets the number of review rounds (default
 observational check is available standalone:
 
 ```sh
-npx sprited check sheet.png -d "a fairy"        # report defects, exit 1 if any
-npx sprited check sheet.png --fix               # also repair -> sheet.fixed.png
+npx sprute check sheet.png -d "a fairy"        # report defects, exit 1 if any
+npx sprute check sheet.png --fix               # also repair -> sheet.fixed.png
 ```
 
 The key can also live in a `.env` file in your working directory. Useful
@@ -93,7 +93,7 @@ options beyond the basics (flag form / config field form):
 | `--sheet` | `outputs.sheet` | off | keep the raw generated sheet as `<name>.sheet.png` |
 | `--template` | `template` | `8dir-v1` (bundled) | a builtin template name (`8dir-v1`, `8dir-v2`); config form also takes a full `{image, inputSlot, grid}` spec |
 | `--provider` | `model.provider` | `gemini` | also: `novita-seedream`, `novita-qwen` (need `NOVITA_API_KEY`) |
-| `--matting` | `matting` | `toonout` | BiRefNet-ToonOut anime matting, run locally via onnxruntime (~440MB model auto-downloaded to `~/.cache/sprited` on first use); falls back to the Replicate endpoint (`REPLICATE_API_TOKEN`), then `floodfill`. `floodfill` = fast, dependency-free |
+| `--matting` | `matting` | `toonout` | BiRefNet-ToonOut anime matting, run locally via onnxruntime (~440MB model auto-downloaded to `~/.cache/sprute` on first use); falls back to the Replicate endpoint (`REPLICATE_API_TOKEN`), then `floodfill`. `floodfill` = fast, dependency-free |
 | `--no-check` | `check: false` | review on | skip the post-generation review/fix |
 | `--max-fixes N` | `maxFixes` | `1` | review/fix rounds per build; each round feeds the previous round's output back |
 | `--report` | `report: true` | off | stream a build log to `<name>.report.md` with every generated image inlined as a data URI |
@@ -102,8 +102,8 @@ options beyond the basics (flag form / config field form):
 Already have a filled sheet, or an animation strip? Extract directly:
 
 ```sh
-npx sprited extract sheet.png --row 1 -o out/my-character
-npx sprited extract-anim walk-sheet.png --frames 8 --fps 8 -o out/walk-S
+npx sprute extract sheet.png --row 1 -o out/my-character
+npx sprute extract-anim walk-sheet.png --frames 8 --fps 8 -o out/walk-S
 ```
 
 The matting model is importable on its own — same API in Node and the
@@ -112,7 +112,7 @@ Node uses `onnxruntime-node`; both try WebGPU first and fall back to
 CPU/WASM):
 
 ```ts
-import { toonoutMatting } from "sprited/toonout";
+import { toonoutMatting } from "sprute/toonout";
 const matted = await toonoutMatting(cells); // RawImage[] in, RawImage[] out
 ```
 
@@ -120,25 +120,25 @@ In the browser, install `onnxruntime-web` alongside; the model (~470MB,
 [sprited/birefnet-toonout-onnx](https://huggingface.co/sprited/birefnet-toonout-onnx))
 is fetched once and kept in the Cache API.
 
-The whole build pipeline also runs in the browser — `sprited/web` is the
+The whole build pipeline also runs in the browser — `sprute/web` is the
 same generate → extract → self-review loop on Canvas instead of sharp
 (matting is the floodfill keyer there for now). The
-[demo page](https://sprited-ai.github.io/sprited/) is exactly this:
+[demo page](https://sprited-ai.github.io/sprute/) is exactly this:
 
 ```ts
-import { buildCharacter, canvasCodec } from "sprited/web";
+import { buildCharacter, canvasCodec } from "sprute/web";
 const template = await canvasCodec.decodeImage(new Uint8Array(await (await fetch(templateUrl)).arrayBuffer()));
 const { cells, spritesheet, entity } = await buildCharacter({
   apiKey, template, description: "a tiny robot with a single glowing eye",
 });
 ```
 
-Tab completion for commands, flags, and flag values (needs `sprited` on your
-PATH, e.g. `npm i -g sprited` — the shell can't complete one-off `npx` runs):
+Tab completion for commands, flags, and flag values (needs `sprute` on your
+PATH, e.g. `npm i -g sprute` — the shell can't complete one-off `npx` runs):
 
 ```sh
-eval "$(sprited completion zsh)"    # ~/.zshrc
-eval "$(sprited completion bash)"   # ~/.bashrc
+eval "$(sprute completion zsh)"    # ~/.zshrc
+eval "$(sprute completion bash)"   # ~/.bashrc
 ```
 
 ## Working from source
@@ -152,13 +152,13 @@ For the CLI against the source tree:
 
 ```sh
 cp .env.example .env   # add your GEMINI_API_KEY
-pnpm cli build examples/lisa.sprited.yaml
+pnpm cli build examples/lisa.sprute.yaml
 ```
 
-`examples/` is flat: each character is a config (`<name>.sprited.yaml`), its
+`examples/` is flat: each character is a config (`<name>.sprute.yaml`), its
 reference (`<name>.reference.png`), and the outputs it produces
 (`<name>.spritesheet.png`, `<name>.turntable.webp`, `<name>.entity.json`).
-Copy an `.sprited.yaml` to start your own character.
+Copy an `.sprute.yaml` to start your own character.
 
 The pipeline core (`src/core`) is pure TypeScript on `ImageData`-shaped
 buffers — no Node APIs — so the same code runs in the browser; only file IO

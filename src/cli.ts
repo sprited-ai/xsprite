@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-/** sprited CLI.
+/** sprute CLI.
  *
- *   sprited build <character.yaml>
- *   sprited extract <sheet.png> [--row N] [--skip-ref N] -o <dir>
- *   sprited extract-anim <sheet.png> --frames 8 [--row N] [--skip-ref N] [--fps 8] -o <dir>
+ *   sprute build <character.yaml>
+ *   sprute extract <sheet.png> [--row N] [--skip-ref N] -o <dir>
+ *   sprute extract-anim <sheet.png> --frames 8 [--row N] [--skip-ref N] [--fps 8] -o <dir>
  */
 import { parseArgs } from "node:util";
 import { join, relative } from "node:path";
@@ -27,13 +27,13 @@ const [cmd, sheetPath, ...rest] = process.argv.slice(2);
 const TURNTABLE_FPS = 2.4;
 
 function usage(): never {
-  console.error('usage: sprited gen char [name] [-d "description"] [-r reference.png] [--seed N] [-o dir] [--sheet] [--matting floodfill|toonout] [--no-check] [--max-fixes N] [--report] [--intermediate]');
-  console.error('       sprited build <name> [flags as above]');
-  console.error("       sprited build <name.sprited.yaml|json>");
-  console.error("       sprited extract <sheet.png> [--row N] [--skip-ref N] -o <dir>");
-  console.error("       sprited extract-anim <sheet.png> --frames N [--row N] [--skip-ref N] [--fps N] [--canvas 256] -o <dir>");
-  console.error('       sprited check <spritesheet.png> [-d "description"] [--fix [-o out.png]]');
-  console.error("       sprited completion [zsh|bash]");
+  console.error('usage: sprute gen char [name] [-d "description"] [-r reference.png] [--seed N] [-o dir] [--sheet] [--matting floodfill|toonout] [--no-check] [--max-fixes N] [--report] [--intermediate]');
+  console.error('       sprute build <name> [flags as above]');
+  console.error("       sprute build <name.sprute.yaml|json>");
+  console.error("       sprute extract <sheet.png> [--row N] [--skip-ref N] -o <dir>");
+  console.error("       sprute extract-anim <sheet.png> --frames N [--row N] [--skip-ref N] [--fps N] [--canvas 256] -o <dir>");
+  console.error('       sprute check <spritesheet.png> [-d "description"] [--fix [-o out.png]]');
+  console.error("       sprute completion [zsh|bash]");
   process.exit(1);
 }
 
@@ -95,7 +95,7 @@ function configFromFlags(name: string | undefined, args: string[]): { cfg: Resol
 }
 
 /** Flag builds drop a config next to the outputs, with the resolved name and
- * seed baked in — `sprited build <name>.sprited.yaml` reruns the exact build.
+ * seed baked in — `sprute build <name>.sprute.yaml` reruns the exact build.
  * Paths are written relative to the yaml, which is how loadConfig reads them. */
 function buildYaml(cfg: ResolvedConfig, templateName: string | undefined, name: string): string {
   return YAML.stringify({
@@ -161,9 +161,9 @@ if (cmd === "build" || cmd === "gen" || cmd === "generate") {
   await writeAnimatedWebp(join(cfg.output, `${name}.turntable.webp`), cells, TURNTABLE_FPS);
   writeFileSync(join(cfg.output, `${name}.entity.json`), JSON.stringify(entity, null, 2) + "\n");
   // the seed that actually produced the kept sheet, not the one we started with
-  if (flags) writeFileSync(join(cfg.output, `${name}.sprited.yaml`), buildYaml({ ...cfg, seed }, flags.template, name));
+  if (flags) writeFileSync(join(cfg.output, `${name}.sprute.yaml`), buildYaml({ ...cfg, seed }, flags.template, name));
   const exts = [...(concept ? ["concept.png"] : []), "spritesheet.png", "turntable.webp", "entity.json",
-    ...(flags ? ["sprited.yaml"] : []), ...(cfg.report ? ["report.md"] : [])];
+    ...(flags ? ["sprute.yaml"] : []), ...(cfg.report ? ["report.md"] : [])];
   console.log(`"${name}" -> ${cfg.output}/${name}.{${exts.join(",")}}`);
   process.exit(0);
 }

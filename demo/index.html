@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>sprited — 8-direction game character sprites from one prompt</title>
+  <title>sprute — 8-direction game character sprites from one prompt</title>
   <meta name="description" content="Generate 8-direction game character sprites with template-guided image models. One command, zero config." />
   <style>
     :root { color-scheme: dark; }
@@ -41,23 +41,23 @@
 </head>
 <body>
 <main>
-  <h1><span>sprited</span></h1>
+  <h1><span>sprute</span></h1>
   <p class="tag">8-direction game character sprites from one prompt — template-guided image models, local BiRefNet-ToonOut matting, model self-review. Open source.</p>
   <div class="links">
-    <a href="https://github.com/sprited-ai/sprited">github</a>
-    <a href="https://www.npmjs.com/package/sprited">npm</a>
+    <a href="https://github.com/sprited-ai/sprute">github</a>
+    <a href="https://www.npmjs.com/package/sprute">npm</a>
     <a href="https://huggingface.co/sprited/birefnet-toonout-onnx">model (HF)</a>
   </div>
 
   <h2>one command</h2>
-  <pre><b>GEMINI_API_KEY=...</b> npx sprited gen char -d "a small forest fairy with green wings"</pre>
+  <pre><b>GEMINI_API_KEY=...</b> npx sprute gen char -d "a small forest fairy with green wings"</pre>
   <p class="note">→ spritesheet (8 directions) + animated turnaround + entity.json + a yaml that reproduces the exact build. Generation by Nano Banana Pro; background removal by BiRefNet-ToonOut running locally via onnxruntime; the result is reviewed and repaired by the image model itself.</p>
 
   <h2>or try it right here</h2>
   <div class="card">
     <p class="note">The same pipeline, running in this tab — no server: your key goes only to
       <code>generativelanguage.googleapis.com</code> and is stored only if you ask
-      (<a href="https://github.com/sprited-ai/sprited/blob/main/demo/main.ts" style="color:#7ee787">source</a>).
+      (<a href="https://github.com/sprited-ai/sprute/blob/main/demo/main.ts" style="color:#7ee787">source</a>).
       Needs a <a href="https://aistudio.google.com/apikey" style="color:#7ee787">Gemini API key</a> with
       access to Nano Banana Pro (paid tier); a run makes 1–2 image-model calls and takes ~30–60s.</p>
     <div class="form">
@@ -85,14 +85,14 @@
       to local ToonOut matting for cleaner edges.</p>
   </div>
 
-  <h2>made with sprited</h2>
+  <h2>made with sprute</h2>
 
   <div class="card">
     <div class="row">
       <img class="turn" src="assets/lisa.turntable.webp" alt="lisa turnaround" />
       <img class="sheet" src="assets/lisa.spritesheet.png" alt="lisa spritesheet" />
     </div>
-    <pre>npx sprited build lisa -d "Character is Lisa and she is a fairy."</pre>
+    <pre>npx sprute build lisa -d "Character is Lisa and she is a fairy."</pre>
   </div>
 
   <div class="card">
@@ -100,7 +100,7 @@
       <img class="turn" src="assets/monet.turntable.webp" alt="monet turnaround" />
       <img class="sheet" src="assets/monet.spritesheet.png" alt="monet spritesheet" />
     </div>
-    <pre>npx sprited build monet -r ./monet.reference.png</pre>
+    <pre>npx sprute build monet -r ./monet.reference.png</pre>
   </div>
 
   <div class="card">
@@ -108,13 +108,13 @@
       <img class="turn" src="assets/blue-dress.turntable.webp" alt="blue-dress turnaround" />
       <img class="sheet" src="assets/blue-dress.spritesheet.png" alt="blue-dress spritesheet" />
     </div>
-    <pre>npx sprited build blue-dress -r ./blue-dress.reference.png</pre>
+    <pre>npx sprute build blue-dress -r ./blue-dress.reference.png</pre>
   </div>
 
   <h2>how it works</h2>
   <p class="note">An example-anchored template (worked example on top, your reference + empty slots below) goes to the image model, which completes the pattern — no fine-tuning, no LoRA. Five views are generated (S SE E NE N), three are mirrored, each is matted by ToonOut, and the assembled turnaround goes back to the model as a labeled 3×3 grid: <em>"any errors? fix them and report the changes."</em></p>
 
-  <footer>MIT · the Monet character is Sprited's, for demonstration only · <a href="https://github.com/sprited-ai/sprited" style="color:#6a6a73">sprited-ai/sprited</a></footer>
+  <footer>MIT · the Monet character is Sprited's, for demonstration only · <a href="https://github.com/sprited-ai/sprute" style="color:#6a6a73">sprited-ai/sprute</a></footer>
 </main>
 <script type="module" src="./main.ts"></script>
 </body>

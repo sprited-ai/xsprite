@@ -1,4 +1,4 @@
-/** Locate the installed sprited package root by walking up from this file
+/** Locate the installed sprute package root by walking up from this file
  * until a package.json appears. Works from src/ (tsx) and from the flattened
  * dist/ bundle alike — a fixed "../.." breaks when tsup changes the depth. */
 import { existsSync } from "node:fs";
@@ -9,7 +9,7 @@ function findRoot(): string {
   let dir = dirname(fileURLToPath(import.meta.url));
   while (!existsSync(join(dir, "package.json"))) {
     const parent = dirname(dir);
-    if (parent === dir) throw new Error("sprited package root not found");
+    if (parent === dir) throw new Error("sprute package root not found");
     dir = parent;
   }
   return dir;

@@ -26,7 +26,7 @@ function apiKey(envKey: string): string {
       if (line.startsWith(`${envKey}=`)) return line.slice(envKey.length + 1).trim();
     }
   }
-  throw new Error(`no ${envKey} in env, ./.env, or sprited/.env`);
+  throw new Error(`no ${envKey} in env, ./.env, or sprute/.env`);
 }
 
 const codec: Codec = {

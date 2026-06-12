@@ -1,4 +1,4 @@
-/** Character config — declare a character once, `sprited build` does the rest:
+/** Character config — declare a character once, `sprute build` does the rest:
  * compose reference into the template, generate via the model, extract, key,
  * assemble. JSON or YAML. */
 import { readFileSync } from "node:fs";
@@ -20,7 +20,7 @@ export interface TemplateSpec extends TemplateGeometry {
  * image paths and slot coordinates. */
 export const BUILTIN_TEMPLATES: Record<string, TemplateSpec> = Object.fromEntries(
   Object.entries(TEMPLATE_GEOMETRY).map(([name, geometry]) => [
-    name, { image: join(PACKAGE_ROOT, "templates", `sprited-${name}.png`), ...geometry },
+    name, { image: join(PACKAGE_ROOT, "templates", `sprute-${name}.png`), ...geometry },
   ]),
 );
 

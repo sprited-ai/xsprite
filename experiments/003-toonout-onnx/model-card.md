@@ -20,13 +20,13 @@ runs anywhere ONNX Runtime does — Node.js included, no Python.
 Converted with `torch.onnx.export` (opset 17) plus
 [`deform_conv2d_onnx_exporter`](https://github.com/masamitsu-murase/deform_conv2d_onnx_exporter)
 for the decoder's deformable convolutions. Conversion script:
-[`experiments/003-toonout-onnx`](https://github.com/sprited-ai/sprited/tree/main/experiments/003-toonout-onnx)
-in the sprited repo.
+[`experiments/003-toonout-onnx`](https://github.com/sprited-ai/sprute/tree/main/experiments/003-toonout-onnx)
+in the sprute repo.
 
 ## Files
 
 - `birefnet-toonout-fp16.onnx` — fp16 weights, **fp32 inputs/outputs** (no
-  Float16Array juggling in JS). This is what [sprited](https://github.com/sprited-ai/sprited) downloads.
+  Float16Array juggling in JS). This is what [sprute](https://github.com/sprited-ai/sprute) downloads.
 - `birefnet-toonout.onnx` — fp32 original export.
 
 ## I/O
@@ -48,4 +48,4 @@ const session = await ort.InferenceSession.create("birefnet-toonout-fp16.onnx");
 const { mask } = await session.run({ image: new ort.Tensor("float32", chw, [1, 3, 1024, 1024]) });
 ```
 
-Or just `npx sprited gen char` — sprited uses this model for matting by default.
+Or just `npx sprute gen char` — sprute uses this model for matting by default.

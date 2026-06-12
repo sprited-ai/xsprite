@@ -1,4 +1,4 @@
-/** Browser character build: same pipeline as sprited/build minus the Node
+/** Browser character build: same pipeline as sprute/build minus the Node
  * concerns — the caller supplies the decoded template image and the API key,
  * matting is the pure floodfill keyer (browser ToonOut is still WIP, see
  * ./toonout.ts), and results come back as RawImages for the app to render

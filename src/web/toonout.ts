@@ -1,5 +1,5 @@
 /** Browser BiRefNet-ToonOut matting — onnxruntime-web (webgpu, wasm
- * fallback). Bundlers resolve `import ... from "sprited/toonout"` to this
+ * fallback). Bundlers resolve `import ... from "sprute/toonout"` to this
  * file via the exports "browser" condition; Node gets the onnxruntime-node
  * glue instead. onnxruntime-web is an optional peer — install it in apps
  * that use this. The model (~470MB) is fetched from HF and kept in the
@@ -11,7 +11,7 @@ let cached: Promise<{ ort: any; sess: any }> | undefined;
 
 async function fetchModel(url: string): Promise<ArrayBuffer> {
   if (typeof caches !== "undefined") {
-    const cache = await caches.open("sprited-models");
+    const cache = await caches.open("sprute-models");
     let res = await cache.match(url);
     if (!res) {
       await cache.add(url);

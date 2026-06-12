@@ -1,4 +1,4 @@
-# sprited character config — `npx tsx src/cli.ts build examples/lisa.sprited.yaml`
+# sprute character config — `npx tsx src/cli.ts build examples/lisa.sprute.yaml`
 # template defaults to the builtin 8dir-v1; add `seed: <number>` to reproduce a build
 name: lisa
 description: "Character is Lisa and she is a fairy."

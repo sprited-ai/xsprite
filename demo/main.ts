@@ -1,10 +1,10 @@
-/** Try-it panel: the browser build pipeline (sprited/web) wired to a tiny
+/** Try-it panel: the browser build pipeline (sprute/web) wired to a tiny
  * form. The user's key lives in this tab (localStorage only on request) and
  * goes only into x-goog-api-key headers on generativelanguage.googleapis.com. */
 import { buildCharacter } from "../src/web/build.js";
 import { canvasCodec } from "../src/web/codec.js";
 import type { RawImage } from "../src/core/image.js";
-import templateUrl from "../templates/sprited-8dir-v1.png";
+import templateUrl from "../templates/sprute-8dir-v1.png";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const keyInput = $<HTMLInputElement>("key");
@@ -17,7 +17,7 @@ const goBtn = $<HTMLButtonElement>("go");
 const logEl = $<HTMLPreElement>("log");
 const resultEl = $("result");
 
-const KEY_STORE = "sprited.gemini-key";
+const KEY_STORE = "sprute.gemini-key";
 keyInput.value = localStorage.getItem(KEY_STORE) ?? "";
 remember.checked = keyInput.value !== "";
 const syncKeyStore = () => {

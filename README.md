@@ -179,7 +179,7 @@ Roadmap: walk-cycle templates, MCP server.
 
 ## Why open source?
 
-See [docs/why-oss.md](docs/why-oss.md).
+See [docs/001-why-oss.md](docs/001-why-oss.md).
 
 ## License
 

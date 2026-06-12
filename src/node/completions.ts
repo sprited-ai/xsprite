@@ -23,7 +23,7 @@ export const ZSH = `_sprited() {
     '--seed[generation seed (number or random)]:seed:'
     '(-o --output)'{-o,--output}'[output directory]:output:_files -/'
     '--sheet[keep the raw generated sheet]'
-    '--template[builtin template]:template:(8dir-v1)'
+    '--template[builtin template]:template:(8dir-v1 8dir-v2)'
     '--provider[model provider]:provider:(gemini novita-seedream novita-qwen)'
     '--matting[background removal]:matting:(floodfill toonout)'
     '--no-check[skip the post-generation review/fix]'
@@ -86,7 +86,7 @@ export const BASH = `_sprited() {
   case $prev in
     --provider) COMPREPLY=($(compgen -W "gemini novita-seedream novita-qwen" -- "$cur")); return ;;
     --matting) COMPREPLY=($(compgen -W "floodfill toonout" -- "$cur")); return ;;
-    --template) COMPREPLY=($(compgen -W "8dir-v1" -- "$cur")); return ;;
+    --template) COMPREPLY=($(compgen -W "8dir-v1 8dir-v2" -- "$cur")); return ;;
     -o|--output) COMPREPLY=($(compgen -d -- "$cur")); return ;;
     -r|--reference) COMPREPLY=($(compgen -f -- "$cur")); return ;;
   esac

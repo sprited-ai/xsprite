@@ -24,7 +24,7 @@ export const BUILTIN_TEMPLATES: Record<string, TemplateSpec> = Object.fromEntrie
   ]),
 );
 
-export const DEFAULT_TEMPLATE = "8dir-v1";
+export const DEFAULT_TEMPLATE = "8dir-v2";
 
 export interface CharacterConfig {
   /** Output/entity name. Omit for the next free char-NNN in the output dir. */

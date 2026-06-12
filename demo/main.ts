@@ -4,7 +4,7 @@
 import { buildCharacter } from "../src/web/build.js";
 import { canvasCodec } from "../src/web/codec.js";
 import type { RawImage } from "../src/core/image.js";
-import templateUrl from "../templates/sprited-8dir-v1.png";
+import templateUrl from "../templates/sprited-8dir-v2.png";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const keyInput = $<HTMLInputElement>("key");

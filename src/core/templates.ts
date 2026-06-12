@@ -16,7 +16,13 @@ export interface TemplateGeometry {
 }
 
 export const TEMPLATE_GEOMETRY: Record<string, TemplateGeometry> = {
+  // v1 and v2 share the layout pixel-for-pixel; v2's worked example is a
+  // cleaner render of the same character
   "8dir-v1": {
+    inputSlot: { x: 32, y: 352, width: 160, height: 256 },
+    grid: { x: 192, y: 352, cellWidth: 160, cellHeight: 256, columns: 5 },
+  },
+  "8dir-v2": {
     inputSlot: { x: 32, y: 352, width: 160, height: 256 },
     grid: { x: 192, y: 352, cellWidth: 160, cellHeight: 256, columns: 5 },
   },

@@ -68,6 +68,18 @@ Nano Banana Pro, extracts and keys the sprites, and writes:
 - `fairy.entity.json` — sprite metadata (directions, states, seed)
 - `fairy.sprited.yaml` — flag builds only: the config that reproduces this build
 
+Every build is QC'd: a VLM reviews the sheet (wrong facings, anatomy
+glitches, parts that change shape mid-turnaround, leftover background). On
+defects the views go back to the image model laid out as a labeled 3x3
+compass grid for an in-place repair — same character, defects fixed — and
+failing that, one fresh-seed regeneration. `--no-check` / `check: false`
+skips all of it. The same review runs standalone:
+
+```sh
+npx sprited check sheet.png -d "a fairy"        # report defects, exit 1 if any
+npx sprited check sheet.png --fix               # also repair -> sheet.fixed.png
+```
+
 The key can also live in a `.env` file in your working directory. Useful
 options beyond the basics (flag form / config field form):
 
@@ -78,6 +90,7 @@ options beyond the basics (flag form / config field form):
 | `--sheet` | `outputs.sheet` | off | keep the raw generated sheet as `<name>.sheet.png` |
 | `--template` | `template` | `8dir-v1` (bundled) | a builtin template name; config form also takes a full `{image, inputSlot, grid}` spec |
 | `--provider` | `model.provider` | `gemini` | also: `novita-seedream`, `novita-qwen` (need `NOVITA_API_KEY`) |
+| `--no-check` | `check: false` | check on | skip the post-generation VLM QC + auto-repair |
 
 Already have a filled sheet, or an animation strip? Extract directly:
 

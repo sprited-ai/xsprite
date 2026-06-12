@@ -2,7 +2,9 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
-import type { RawImage } from "../core/image.js";
+import { crop, createImage, paste, scaleNearest, type RawImage } from "../core/image.js";
+import { keyCell } from "../core/keyer.js";
+import { SPIN_ORDER } from "../core/extract.js";
 import { PACKAGE_ROOT } from "./pkg.js";
 
 export type Provider = "gemini" | "novita-seedream" | "novita-qwen";
@@ -127,6 +129,257 @@ export async function generateSheet(template: RawImage, prompt: string, opts: Ge
     if (status === "TASK_STATUS_FAILED") throw new Error(`qwen failed: ${JSON.stringify(json).slice(0, 200)}`);
   }
   throw new Error("qwen poll timeout");
+}
+
+export interface SheetCheck {
+  ok: boolean;
+  issues: { cell?: string; note: string }[];
+}
+
+/** Screen-relative facing per SPIN_ORDER slot, this template's convention:
+ * the turnaround rotates clockwise toward screen-right (verified on lisa). */
+const FACINGS = ["front", "front-right", "right", "back-right", "back", "back-left", "left", "front-left"] as const;
+
+/** Front/back component of a facing: front=2 ... side=0 ... back=-2. Only
+ * this axis enters the verdict — tested on the same sheet twice, the VLM's
+ * left/right reading of pixel-art profiles flips between runs, while
+ * front-vs-back (face visible or not) is stable. */
+const FRONTNESS: Record<string, number> = {
+  front: 2, "front-left": 1, "front-right": 1, left: 0, right: 0,
+  "back-left": -1, "back-right": -1, back: -2,
+};
+/** Expected front/back per SPIN_ORDER slot (S SE E NE N NW W SW). */
+const EXPECTED_FRONTNESS = [2, 1, 0, -1, -2, -1, 0, 1];
+
+async function vlmJson(b64: string, key: string, prompt: string): Promise<any> {
+  // the model occasionally breaks its own JSON (unescaped quotes in a note) —
+  // one fresh call covers it
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify({
+          contents: [{ parts: [
+            { inline_data: { mime_type: "image/png", data: b64 } },
+            { text: prompt },
+          ] }],
+          generationConfig: { responseMimeType: "application/json", temperature: 0 },
+        }),
+      });
+    if (!res.ok) throw new Error(`check ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const json = await res.json() as any;
+    const text = (json.candidates?.[0]?.content?.parts ?? []).map((p: any) => p.text ?? "").join("");
+    try {
+      return JSON.parse(text.replace(/^```(json)?|```$/g, "").trim());
+    } catch {
+      if (attempt >= 1) throw new Error(`check: unparseable VLM reply: ${text.slice(0, 120)}`);
+    }
+  }
+}
+
+const slotName = (i: number) => (FACINGS[i] ? `${FACINGS[i]} view (${SPIN_ORDER[i]})` : `cell ${i}`);
+
+/** Facing + per-cell defects + identity drift. */
+async function checkFacingAndDefects(b64: string, key: string, description?: string): Promise<SheetCheck["issues"]> {
+  const prompt =
+    "This image is a horizontal strip of 8 cells, numbered 0-7 left to right, " +
+    "each showing the same game character from a different angle." +
+    (description ? ` The character: ${description}.` : "") +
+    "\nFor each cell report:\n" +
+    `- facing: one of ${FACINGS.join(", ")} — screen-relative: "front" = face toward the viewer, ` +
+    '"left" = profile looking at the image\'s left edge, "back" = back of the head\n' +
+    "- defects: real rendering mistakes only (extra/missing/garbled limbs or face, a second " +
+    "character in the cell, leftover background patches, head or feet cut off). [] if clean.\n" +
+    'Also "identity": ways the character is NOT the same across all 8 cells — outfit, colors, or ' +
+    "proportions that change between cells (allowing for the viewing angle). [] if consistent.\n" +
+    'Reply as JSON: {"cells": [{"cell": 0, "facing": "front", "defects": []}, ...], "identity": []}';
+  const parsed = await vlmJson(b64, key, prompt) as {
+    cells?: { cell?: number; facing?: string; defects?: string[] }[];
+    identity?: string[];
+  };
+  const issues: SheetCheck["issues"] = [];
+  (parsed.cells ?? []).forEach((c, idx) => {
+    const i = c.cell ?? idx;
+    const got = FRONTNESS[c.facing ?? ""];
+    if (got !== undefined && i < EXPECTED_FRONTNESS.length && Math.abs(got - EXPECTED_FRONTNESS[i]) > 1) {
+      issues.push({ cell: slotName(i), note: `faces ${c.facing}, slot expects ${FACINGS[i]}` });
+    }
+    for (const note of c.defects ?? []) issues.push({ cell: slotName(i), note });
+  });
+  for (const note of parsed.identity ?? []) issues.push({ note });
+  return issues;
+}
+
+/** Attached-part consistency (wings, tails, hats...). The VLM describes each
+ * part per cell with a coarse outline/spread vocabulary — independently, no
+ * cross-cell judgment — and cells disagreeing with the majority are flagged
+ * here. Catches e.g. slim fairy wings that turn into broad butterfly wings in
+ * the back view, which "is this consistent?" questions rationalize away as
+ * perspective (tested: they pass it, this catches it). */
+async function checkPartConsistency(b64: string, key: string): Promise<SheetCheck["issues"]> {
+  const prompt =
+    "This image is a horizontal strip of 8 cells, numbered 0-7 left to right, one game character rotating in place.\n" +
+    "For each cell, describe each attached part or accessory (wings, tail, hat, weapon, bag — not body or clothes) " +
+    "with exactly these fields:\n" +
+    '- name (same name for the same part in every cell)\n' +
+    '- outline: "pointed" | "rounded" | "square" | "irregular"\n' +
+    '- spread: "tall" (clearly taller than wide) | "wide" (clearly wider than tall) | "even"\n' +
+    "Describe only what is visible in that cell, independently — do not harmonize across cells.\n" +
+    'Reply as JSON: {"cells": [{"cell": 0, "parts": [{"name": "wings", "outline": "...", "spread": "..."}]}, ...]}';
+  const parsed = await vlmJson(b64, key, prompt) as {
+    cells?: { cell?: number; parts?: { name?: string; outline?: string; spread?: string }[] }[];
+  };
+  const OUTLINES = ["pointed", "rounded", "square", "irregular"];
+  const SPREADS = ["tall", "wide", "even"];
+  const seen: Record<string, { cell: number; outline?: string; spread?: string }[]> = {};
+  (parsed.cells ?? []).forEach((c, idx) => {
+    for (const p of c.parts ?? []) {
+      if (!p.name) continue;
+      (seen[p.name.trim().toLowerCase()] ??= []).push({ cell: c.cell ?? idx, outline: p.outline, spread: p.spread });
+    }
+  });
+  const issues: SheetCheck["issues"] = [];
+  for (const [part, list] of Object.entries(seen)) {
+    for (const [field, valid] of [["outline", OUTLINES], ["spread", SPREADS]] as const) {
+      const obs = list.filter((e) => valid.includes(e[field] ?? ""));
+      const counts = new Map<string, number>();
+      for (const e of obs) counts.set(e[field]!, (counts.get(e[field]!) ?? 0) + 1);
+      const majority = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+      // a clear majority with dissenting cells = the part changes look mid-turnaround
+      if (!majority || majority[1] < 5) continue;
+      for (const e of obs.filter((e) => e[field] !== majority[0])) {
+        issues.push({ cell: slotName(e.cell), note: `${part} looks ${e[field]} here but ${majority[0]} in the other cells` });
+      }
+    }
+  }
+  return issues;
+}
+
+/** Post-generation QC. The VLM only *observes* — facings, defects, part
+ * descriptions; verdicts are computed in code from the observations. */
+export async function checkSpritesheet(sheet: RawImage, description?: string): Promise<SheetCheck> {
+  const key = apiKey("GEMINI_API_KEY");
+  const b64 = (await toPngBuffer(sheet)).toString("base64");
+  // part observation is flaky on borderline shapes even at temperature 0 —
+  // three independent passes, union of findings
+  const [facing, ...parts] = await Promise.all([
+    checkFacingAndDefects(b64, key, description),
+    checkPartConsistency(b64, key),
+    checkPartConsistency(b64, key),
+    checkPartConsistency(b64, key),
+  ]);
+  const issues = [...facing, ...parts.flat()];
+  const deduped = [...new Map(issues.map((i) => [`${i.cell ?? ""}|${i.note}`, i])).values()];
+  return { ok: deduped.length === 0, issues: deduped };
+}
+
+/** 3x3 compass layout for the fix round-trip: a 1x8 strip is 5:1 and the
+ * editor's vision encoder starves each cell of pixels; near-square keeps
+ * per-cell detail. Position encodes direction, a label under each view
+ * spells it out, the center stays empty. */
+const FIX_GRID: (number | null)[][] = (() => {
+  const at = (d: string) => SPIN_ORDER.indexOf(d as typeof SPIN_ORDER[number]);
+  return [
+    [at("NW"), at("N"), at("NE")],
+    [at("W"), null, at("E")],
+    [at("SW"), at("S"), at("SE")],
+  ];
+})();
+
+async function buildFixGrid(cells: RawImage[], barH: number): Promise<Buffer> {
+  const { width: cw, height: ch } = cells[0];
+  const slotH = ch + barH;
+  const overlays: sharp.OverlayOptions[] = [];
+  let labels = "";
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      const slot = FIX_GRID[r][c];
+      if (slot === null) continue;
+      overlays.push({ input: await toPngBuffer(cells[slot]), left: c * cw, top: r * slotH });
+      labels +=
+        `<text x="${Math.round((c + 0.5) * cw)}" y="${Math.round(r * slotH + ch + barH * 0.7)}" ` +
+        `font-family="sans-serif" font-size="${Math.round(barH * 0.5)}" text-anchor="middle" fill="black">${FACINGS[slot]}</text>`;
+    }
+  }
+  const svg = `<svg width="${cw * 3}" height="${slotH * 3}" xmlns="http://www.w3.org/2000/svg">${labels}</svg>`;
+  overlays.push({ input: Buffer.from(svg), left: 0, top: 0 });
+  return sharp({
+    create: { width: cw * 3, height: slotH * 3, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } },
+  }).composite(overlays).png().toBuffer();
+}
+
+/** Slice a (possibly rescaled) fixed grid back into SPIN_ORDER cells: crop
+ * each slot, drop its label strip, key the background, restore cell size. */
+function sliceFixGrid(img: RawImage, cellWidth: number, cellHeight: number, barH: number): RawImage[] {
+  const sw = img.width / 3, sh = img.height / 3;
+  const contentH = sh * (cellHeight / (cellHeight + barH));
+  const out: RawImage[] = new Array(8);
+  const inset = Math.max(2, Math.round(sw / 64));
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      const slot = FIX_GRID[r][c];
+      if (slot === null) continue;
+      const inner = crop(img,
+        Math.round(c * sw) + inset, Math.round(r * sh) + inset,
+        Math.round(sw) - 2 * inset, Math.round(contentH) - 2 * inset);
+      const keyed = keyCell(inner);
+      const padded = createImage(Math.round(sw), Math.round(contentH), [0, 0, 0, 0]);
+      paste(padded, keyed, inset, inset);
+      out[slot] = padded.width === cellWidth ? padded : scaleNearest(padded, cellWidth / padded.width);
+    }
+  }
+  return out;
+}
+
+/** Targeted repair: hand the defective views back to the image model (NBP
+ * edits in place, preserving identity — unlike a fresh-seed regen) with the
+ * issue list, get corrected cells + a text report of what changed. */
+export async function fixSpritesheet(
+  cells: RawImage[], issues: SheetCheck["issues"], opts: GenerateOptions = {},
+): Promise<{ cells: RawImage[]; report?: string }> {
+  const model = opts.model ?? DEFAULT_MODEL.gemini;
+  const key = apiKey(opts.envKey ?? "GEMINI_API_KEY");
+  const { width: cw, height: ch } = cells[0];
+  const barH = Math.max(24, Math.round(ch * 0.1));
+  const b64 = (await buildFixGrid(cells, barH)).toString("base64");
+  const prompt =
+    "This is a 3x3 grid of views of one game character; the label under each view names its " +
+    "facing direction, the center cell is empty.\nThe views have these defects:\n" +
+    issues.map((i) => `- ${i.cell ? `${i.cell}: ` : ""}${i.note}`).join("\n") +
+    "\nFix the defects. Keep everything else exactly as it is: same character, same art style, " +
+    "same pose and facing per view, same grid layout, same labels, same image size, same background. " +
+    "Also describe briefly, as text, what you changed.";
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify({
+          contents: [{ parts: [
+            { inline_data: { mime_type: "image/png", data: b64 } },
+            { text: prompt },
+          ] }],
+          generationConfig: {
+            responseModalities: ["IMAGE", "TEXT"],
+            ...(opts.seed !== undefined && { seed: opts.seed }),
+          },
+        }),
+      });
+    if (!res.ok) throw new Error(`fix ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    const json = await res.json() as any;
+    let image: RawImage | undefined;
+    let report = "";
+    for (const part of json.candidates?.[0]?.content?.parts ?? []) {
+      const d = part.inlineData ?? part.inline_data;
+      if (d) image = await fromBytes(Buffer.from(d.data, "base64"));
+      if (part.text) report += part.text;
+    }
+    if (image) return { cells: sliceFixGrid(image, cw, ch, barH), report: report.trim() || undefined };
+    if (attempt >= 1) throw new Error("fix: model returned no image");
+  }
 }
 
 export function defaultPrompt(hasReference: boolean, description?: string): string {

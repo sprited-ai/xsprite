@@ -9,6 +9,7 @@ export const ZSH = `_sprited() {
     'build:build a character from flags or a config file'
     'extract:slice a filled direction sheet into sprites'
     'extract-anim:slice an animation strip into frames'
+    'check:VLM-review a spritesheet for defects'
     'completion:print a shell completion script'
   )
   if (( CURRENT == 2 )); then
@@ -24,6 +25,7 @@ export const ZSH = `_sprited() {
     '--sheet[keep the raw generated sheet]'
     '--template[builtin template]:template:(8dir-v1)'
     '--provider[model provider]:provider:(gemini novita-seedream novita-qwen)'
+    '--no-check[skip the post-generation VLM check]'
   )
   case \${words[2]} in
     gen)
@@ -53,6 +55,13 @@ export const ZSH = `_sprited() {
         '--skip-ref[leading cells to skip]:cells:' \\
         '(-o --output)'{-o,--output}'[output directory]:output:_files -/'
       ;;
+    check)
+      _arguments \\
+        ':spritesheet:_files -g "*.png"' \\
+        '(-d --description)'{-d,--description}'[what the character should be]:description:' \\
+        '--fix[repair defects via the image model]' \\
+        '(-o --output)'{-o,--output}'[fixed sheet path]:output:_files -g "*.png"'
+      ;;
     completion)
       compadd zsh bash
       ;;
@@ -66,7 +75,7 @@ export const BASH = `_sprited() {
   cur=\${COMP_WORDS[COMP_CWORD]}
   prev=\${COMP_WORDS[COMP_CWORD-1]}
   if [ "$COMP_CWORD" -eq 1 ]; then
-    COMPREPLY=($(compgen -W "gen build extract extract-anim completion" -- "$cur"))
+    COMPREPLY=($(compgen -W "gen build extract extract-anim check completion" -- "$cur"))
     return
   fi
   cmd=\${COMP_WORDS[1]}
@@ -79,7 +88,8 @@ export const BASH = `_sprited() {
   case $cur in
     -*)
       case $cmd in
-        gen|build) COMPREPLY=($(compgen -W "-d --description -r --reference --seed -o --output --sheet --template --provider" -- "$cur")) ;;
+        gen|build) COMPREPLY=($(compgen -W "-d --description -r --reference --seed -o --output --sheet --template --provider --no-check" -- "$cur")) ;;
+        check) COMPREPLY=($(compgen -W "-d --description --fix -o --output" -- "$cur")) ;;
         extract) COMPREPLY=($(compgen -W "--row --skip-ref -o --output" -- "$cur")) ;;
         extract-anim) COMPREPLY=($(compgen -W "--frames --fps --canvas --row --skip-ref -o --output" -- "$cur")) ;;
       esac

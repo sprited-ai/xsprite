@@ -59,6 +59,11 @@ export interface CharacterConfig {
    * endpoint; needs REPLICATE_API_TOKEN; best edge quality). */
   matting?: "floodfill" | "toonout";
 
+  /** Post-generation QC (default true): a VLM reviews the assembled
+   * spritesheet for defects; on a rolled (non-pinned) seed, defects trigger
+   * regeneration with a fresh seed, keeping the cleanest attempt. */
+  check?: boolean;
+
   outputs?: {
     /** Keep the raw filled sheet: true → <name>.sheet.png, or a filename. */
     sheet?: string | boolean;
@@ -67,12 +72,16 @@ export interface CharacterConfig {
 
 export type ResolvedConfig = CharacterConfig & {
   seed: number; template: TemplateSpec; output: string;
+  /** True when the seed was rolled (not pinned by the user) — a failed QC
+   * check may retry with a fresh seed; a pinned seed never retries. */
+  seedRolled: boolean;
 };
 
 /** Validate, roll the seed, and resolve relative paths against `base` — the
  * config file's directory, or cwd when the config came from CLI flags. */
 export function resolveConfig(cfg: CharacterConfig, base: string): ResolvedConfig {
-  const seed = typeof cfg.seed === "number" ? cfg.seed : Math.floor(Math.random() * 2 ** 31);
+  const seedRolled = typeof cfg.seed !== "number";
+  const seed = seedRolled ? Math.floor(Math.random() * 2 ** 31) : cfg.seed as number;
   const templateName = typeof cfg.template === "string" ? cfg.template : undefined;
   if (templateName && !BUILTIN_TEMPLATES[templateName]) {
     throw new Error(`unknown template "${templateName}" — builtins: ${Object.keys(BUILTIN_TEMPLATES).join(", ")}`);
@@ -85,7 +94,7 @@ export function resolveConfig(cfg: CharacterConfig, base: string): ResolvedConfi
   return {
     ...cfg,
     ...(cfg.reference && { reference: rel(cfg.reference) }),
-    seed, template, output: rel(cfg.output ?? "."),
+    seed, seedRolled, template, output: rel(cfg.output ?? "."),
   };
 }
 

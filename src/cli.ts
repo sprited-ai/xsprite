@@ -9,7 +9,7 @@ import { parseArgs } from "node:util";
 import { join, relative } from "node:path";
 import YAML from "yaml";
 import { extractDirections, extractAnimation, SPIN_ORDER, GENERATED_DIRECTIONS, MIRRORED, type Direction } from "./core/extract.js";
-import { centerOnCanvas, createImage, paste, flipX, type RawImage } from "./core/image.js";
+import { centerOnCanvas, createImage, paste, flipX, scaleNearest, type RawImage } from "./core/image.js";
 import { toonoutMatting, hasReplicateToken } from "./node/matting.js";
 import { makeSpriteSheet } from "./core/sheet.js";
 import { makeEntity } from "./core/entity.js";
@@ -19,7 +19,7 @@ import { loadConfig, resolveConfig } from "./config.js";
 import type { CharacterConfig, ResolvedConfig } from "./config.js";
 import { startProgress } from "./node/progress.js";
 import { ZSH, BASH } from "./node/completions.js";
-import { generateSheet, defaultPrompt } from "./node/generate.js";
+import { generateSheet, defaultPrompt, checkSpritesheet, fixSpritesheet, type SheetCheck } from "./node/generate.js";
 import { pasteIntoSlot } from "./core/image.js";
 
 const [cmd, sheetPath, ...rest] = process.argv.slice(2);
@@ -28,11 +28,12 @@ const [cmd, sheetPath, ...rest] = process.argv.slice(2);
 const TURNTABLE_FPS = 2.4;
 
 function usage(): never {
-  console.error('usage: sprited gen char [name] [-d "description"] [-r reference.png] [--seed N] [-o dir] [--sheet]');
+  console.error('usage: sprited gen char [name] [-d "description"] [-r reference.png] [--seed N] [-o dir] [--sheet] [--no-check]');
   console.error('       sprited build <name> [flags as above]');
   console.error("       sprited build <name.sprited.yaml|json>");
   console.error("       sprited extract <sheet.png> [--row N] [--skip-ref N] -o <dir>");
   console.error("       sprited extract-anim <sheet.png> --frames N [--row N] [--skip-ref N] [--fps N] [--canvas 256] -o <dir>");
+  console.error('       sprited check <spritesheet.png> [-d "description"] [--fix [-o out.png]]');
   console.error("       sprited completion [zsh|bash]");
   process.exit(1);
 }
@@ -71,6 +72,7 @@ function configFromFlags(name: string | undefined, args: string[]): { cfg: Resol
       sheet: { type: "boolean" },
       template: { type: "string" },
       provider: { type: "string" },
+      "no-check": { type: "boolean" },
     },
   });
   if (b.seed !== undefined && b.seed !== "random" && !Number.isInteger(Number(b.seed))) {
@@ -85,6 +87,7 @@ function configFromFlags(name: string | undefined, args: string[]): { cfg: Resol
     template: b.template,
     model: b.provider ? { provider: b.provider as NonNullable<CharacterConfig["model"]>["provider"] } : undefined,
     outputs: b.sheet ? { sheet: true } : undefined,
+    check: b["no-check"] ? false : undefined,
   }, process.cwd());
   // resolveConfig swaps the template name for its spec — keep the name for the yaml
   return { cfg, template: b.template };
@@ -102,6 +105,7 @@ function buildYaml(cfg: ResolvedConfig, templateName: string | undefined, name: 
     ...(templateName && { template: templateName }),
     ...(cfg.model?.provider && { model: { provider: cfg.model.provider } }),
     ...(cfg.outputs?.sheet && { outputs: { sheet: cfg.outputs.sheet } }),
+    ...(cfg.check === false && { check: false }),
   });
 }
 
@@ -133,58 +137,146 @@ if (cmd === "build" || cmd === "gen" || cmd === "generate") {
     pasteIntoSlot(template, await readImage(cfg.reference), cfg.template!.inputSlot);
   }
   const prompt = defaultPrompt(Boolean(cfg.reference), cfg.description);
-  const { seed } = cfg;
   const name = cfg.name ?? nextCharName(cfg.output);
   const provider = cfg.model?.provider ?? "gemini";
-  const progress = startProgress(`${name} · ${provider} · seed ${seed}`, provider === "gemini" ? 45_000 : 60_000);
-  let sheet;
-  try {
-    sheet = await generateSheet(template, prompt, { ...cfg.model, seed });
-  } finally {
-    progress.done(`${name} · generated`);
-  }
-  const s = sheet.width / template.width;
-  const g = cfg.template!.grid;
-  const rect = g
-    ? { x: g.x, y: g.y, width: g.cellWidth * g.columns, height: g.cellHeight }
-    : cleanPanel;
-  const panel = rect && {
-    x: Math.round(rect.x * s), y: Math.round(rect.y * s),
-    width: Math.round(rect.width * s), height: Math.round(rect.height * s),
-  };
   let useToonout = cfg.matting === "toonout";
   if (useToonout && !hasReplicateToken()) {
     console.error("warning: matting: toonout requested but no REPLICATE_API_TOKEN found — falling back to the built-in color keyer (lower edge quality on hair/translucency)");
     useToonout = false;
   }
-  let sprites: Record<Direction, RawImage>;
-  if (useToonout) {
-    const inset = 4;
-    const rawCells = extractDirections(sheet, { panel, raw: true, inset });
-    const rawList = GENERATED_DIRECTIONS.map((d) => rawCells[d]);
-    console.error("matting via sprited/birefnet-toonout (cold boot can take ~2min)...");
-    const matted = await toonoutMatting(rawList);
-    const pad = (img: RawImage): RawImage => {
-      const padded = createImage(img.width + 2 * inset, img.height + 2 * inset, [0, 0, 0, 0]);
-      paste(padded, img, inset, inset);
-      return padded;
+
+  /** One generation pass: model call + extraction into SPIN_ORDER cells. */
+  async function attempt(seed: number, label: string): Promise<{ sheet: RawImage; ordered: RawImage[] }> {
+    const progress = startProgress(`${name} · ${provider} · seed ${seed}${label}`, provider === "gemini" ? 45_000 : 60_000);
+    let sheet: RawImage;
+    try {
+      sheet = await generateSheet(template, prompt, { ...cfg.model, seed });
+    } finally {
+      progress.done(`${name} · generated${label}`);
+    }
+    const s = sheet.width / template.width;
+    const g = cfg.template!.grid;
+    const rect = g
+      ? { x: g.x, y: g.y, width: g.cellWidth * g.columns, height: g.cellHeight }
+      : cleanPanel;
+    const panel = rect && {
+      x: Math.round(rect.x * s), y: Math.round(rect.y * s),
+      width: Math.round(rect.width * s), height: Math.round(rect.height * s),
     };
-    sprites = {} as Record<Direction, RawImage>;
-    GENERATED_DIRECTIONS.forEach((d, i) => { sprites[d] = pad(matted[i]); });
-    for (const [dst, src] of Object.entries(MIRRORED)) sprites[dst as Direction] = flipX(sprites[src as Direction]);
-  } else {
-    sprites = extractDirections(sheet, { panel });
+    let sprites: Record<Direction, RawImage>;
+    if (useToonout) {
+      const inset = 4;
+      const rawCells = extractDirections(sheet, { panel, raw: true, inset });
+      const rawList = GENERATED_DIRECTIONS.map((d) => rawCells[d]);
+      console.error("matting via sprited/birefnet-toonout (cold boot can take ~2min)...");
+      const matted = await toonoutMatting(rawList);
+      const pad = (img: RawImage): RawImage => {
+        const padded = createImage(img.width + 2 * inset, img.height + 2 * inset, [0, 0, 0, 0]);
+        paste(padded, img, inset, inset);
+        return padded;
+      };
+      sprites = {} as Record<Direction, RawImage>;
+      GENERATED_DIRECTIONS.forEach((d, i) => { sprites[d] = pad(matted[i]); });
+      for (const [dst, src] of Object.entries(MIRRORED)) sprites[dst as Direction] = flipX(sprites[src as Direction]);
+    } else {
+      sprites = extractDirections(sheet, { panel });
+    }
+    return { sheet, ordered: SPIN_ORDER.map((d) => sprites[d]) };
   }
-  const ordered = SPIN_ORDER.map((d) => sprites[d]);
+
+  // generate → VLM QC → on defects, first a targeted in-place fix by the
+  // image model (keeps the character), then — rolled seeds only, a pinned
+  // seed is a reproduction request — a fresh-seed regen. Cleanest wins.
+  const MAX_ATTEMPTS = 2;
+  let seed = cfg.seed;
+  let best: { sheet: RawImage; ordered: RawImage[]; seed: number; issues: SheetCheck["issues"] } | undefined;
+  const consider = (cand: NonNullable<typeof best>) => {
+    if (!best || cand.issues.length < best.issues.length) best = cand;
+  };
+  for (let n = 1; ; n++) {
+    const built = await attempt(seed, n > 1 ? ` · retry ${n - 1}` : "");
+    if (cfg.check === false) { best = { ...built, seed, issues: [] }; break; }
+    let verdict: SheetCheck;
+    try {
+      verdict = await checkSpritesheet(makeSpriteSheet(built.ordered), cfg.description);
+    } catch (e) {
+      console.error(`check skipped (${e instanceof Error ? e.message : e})`);
+      best = { ...built, seed, issues: [] };
+      break;
+    }
+    if (verdict.ok) {
+      console.error("check: clean");
+      best = { ...built, seed, issues: [] };
+      break;
+    }
+    for (const i of verdict.issues) console.error(`check: ${i.cell ?? "sheet"} — ${i.note}`);
+    consider({ ...built, seed, issues: verdict.issues });
+    try {
+      const progress = startProgress(`${name} · fixing ${verdict.issues.length} issue(s)`, 45_000);
+      let fixed;
+      try {
+        fixed = await fixSpritesheet(built.ordered, verdict.issues, { ...cfg.model, seed });
+      } finally {
+        progress.done(`${name} · fixed`);
+      }
+      if (fixed.report) console.error(`fix: ${fixed.report.replace(/\s*\n\s*/g, " ")}`);
+      const ordered = fixed.cells;
+      const after = await checkSpritesheet(makeSpriteSheet(ordered), cfg.description);
+      if (after.ok) {
+        console.error("check: clean after fix");
+        best = { sheet: built.sheet, ordered, seed, issues: [] };
+        break;
+      }
+      for (const i of after.issues) console.error(`check (after fix): ${i.cell ?? "sheet"} — ${i.note}`);
+      consider({ sheet: built.sheet, ordered, seed, issues: after.issues });
+    } catch (e) {
+      console.error(`fix skipped (${e instanceof Error ? e.message : e})`);
+    }
+    if (!cfg.seedRolled) { console.error("check: seed is pinned — keeping the build"); break; }
+    if (n >= MAX_ATTEMPTS) {
+      console.error(`check: keeping the cleanest attempt (seed ${best!.seed}, ${best!.issues.length} issue(s))`);
+      break;
+    }
+    seed = Math.floor(Math.random() * 2 ** 31);
+  }
+  const { sheet, ordered } = best!;
+  seed = best!.seed;
   if (cfg.outputs?.sheet) await writePng(join(cfg.output, cfg.outputs.sheet === true ? `${name}.sheet.png` : cfg.outputs.sheet), sheet);
   await writePng(join(cfg.output, `${name}.spritesheet.png`), makeSpriteSheet(ordered));
   await writeAnimatedWebp(join(cfg.output, `${name}.turntable.webp`), ordered, TURNTABLE_FPS);
   const entity = makeEntity(name, ordered[0].width, ordered[0].height, seed);
   writeFileSync(join(cfg.output, `${name}.entity.json`), JSON.stringify(entity, null, 2) + "\n");
-  if (flags) writeFileSync(join(cfg.output, `${name}.sprited.yaml`), buildYaml(cfg, flags.template, name));
+  // the seed that actually produced the kept sheet, not the one we started with
+  if (flags) writeFileSync(join(cfg.output, `${name}.sprited.yaml`), buildYaml({ ...cfg, seed }, flags.template, name));
   const exts = ["spritesheet.png", "turntable.webp", "entity.json", ...(flags ? ["sprited.yaml"] : [])];
   console.log(`"${name}" -> ${cfg.output}/${name}.{${exts.join(",")}}`);
   process.exit(0);
+}
+
+if (cmd === "check") {
+  // standalone QC: same VLM review the build pipeline runs, exit 1 on defects;
+  // --fix hands the sheet to the image model for an in-place repair
+  const { values: c } = parseArgs({ args: rest, options: {
+    description: { type: "string", short: "d" },
+    fix: { type: "boolean" },
+    output: { type: "string", short: "o" },
+  } });
+  const img = await readImage(sheetPath);
+  const verdict = await checkSpritesheet(img, c.description);
+  if (verdict.ok) {
+    console.log("clean");
+    process.exit(0);
+  }
+  for (const i of verdict.issues) console.log(`${i.cell ?? "sheet"} — ${i.note}`);
+  if (!c.fix) process.exit(1);
+  const strip = extractAnimation(img, 8, { panel: { x: 0, y: 0, width: img.width, height: img.height } });
+  const { cells, report } = await fixSpritesheet(strip, verdict.issues);
+  if (report) console.error(`fix: ${report.replace(/\s*\n\s*/g, " ")}`);
+  const out = c.output ?? sheetPath.replace(/\.png$/i, "") + ".fixed.png";
+  await writePng(out, makeSpriteSheet(cells));
+  const after = await checkSpritesheet(makeSpriteSheet(cells), c.description);
+  console.log(`${after.ok ? "clean after fix" : `${after.issues.length} issue(s) remain after fix`} -> ${out}`);
+  process.exit(after.ok ? 0 : 1);
 }
 
 const { values: v } = parseArgs({

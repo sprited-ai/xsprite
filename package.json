@@ -1,6 +1,6 @@
 {
   "name": "sprited",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Generate 8-direction game character sprites with template-guided image models",
   "license": "MIT",
   "publishConfig": {

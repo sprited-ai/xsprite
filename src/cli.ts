@@ -18,6 +18,7 @@ import { readImage, writePng, writeAnimatedWebp } from "./node/io.js";
 import { loadConfig, resolveConfig } from "./config.js";
 import type { CharacterConfig, ResolvedConfig } from "./config.js";
 import { startProgress } from "./node/progress.js";
+import { startReport, type Reporter } from "./node/report.js";
 import { ZSH, BASH } from "./node/completions.js";
 import { generateSheet, defaultPrompt, checkSpritesheet, fixSpritesheet, type SheetCheck } from "./node/generate.js";
 import { pasteIntoSlot } from "./core/image.js";
@@ -28,7 +29,7 @@ const [cmd, sheetPath, ...rest] = process.argv.slice(2);
 const TURNTABLE_FPS = 2.4;
 
 function usage(): never {
-  console.error('usage: sprited gen char [name] [-d "description"] [-r reference.png] [--seed N] [-o dir] [--sheet] [--no-check]');
+  console.error('usage: sprited gen char [name] [-d "description"] [-r reference.png] [--seed N] [-o dir] [--sheet] [--no-check] [--report]');
   console.error('       sprited build <name> [flags as above]');
   console.error("       sprited build <name.sprited.yaml|json>");
   console.error("       sprited extract <sheet.png> [--row N] [--skip-ref N] -o <dir>");
@@ -73,6 +74,7 @@ function configFromFlags(name: string | undefined, args: string[]): { cfg: Resol
       template: { type: "string" },
       provider: { type: "string" },
       "no-check": { type: "boolean" },
+      report: { type: "boolean" },
     },
   });
   if (b.seed !== undefined && b.seed !== "random" && !Number.isInteger(Number(b.seed))) {
@@ -88,6 +90,7 @@ function configFromFlags(name: string | undefined, args: string[]): { cfg: Resol
     model: b.provider ? { provider: b.provider as NonNullable<CharacterConfig["model"]>["provider"] } : undefined,
     outputs: b.sheet ? { sheet: true } : undefined,
     check: b["no-check"] ? false : undefined,
+    report: b.report || undefined,
   }, process.cwd());
   // resolveConfig swaps the template name for its spec — keep the name for the yaml
   return { cfg, template: b.template };
@@ -106,6 +109,7 @@ function buildYaml(cfg: ResolvedConfig, templateName: string | undefined, name: 
     ...(cfg.model?.provider && { model: { provider: cfg.model.provider } }),
     ...(cfg.outputs?.sheet && { outputs: { sheet: cfg.outputs.sheet } }),
     ...(cfg.check === false && { check: false }),
+    ...(cfg.report && { report: true }),
   });
 }
 
@@ -189,27 +193,48 @@ if (cmd === "build" || cmd === "gen" || cmd === "generate") {
   // seed is a reproduction request — a fresh-seed regen. Cleanest wins.
   const MAX_ATTEMPTS = 2;
   let seed = cfg.seed;
+  // opt-in build log: every step appended as it happens, images inlined
+  const report: Reporter | undefined = cfg.report
+    ? startReport(join(cfg.output, `${name}.report.md`), `${name} — build report`)
+    : undefined;
+  report?.log([
+    `- provider: \`${provider}\``,
+    `- seed: \`${seed}\` (${cfg.seedRolled ? "rolled" : "pinned"})`,
+    ...(cfg.description ? [`- description: ${cfg.description}`] : []),
+    ...(cfg.reference ? [`- reference: \`${cfg.reference}\``] : []),
+    `- matting: \`${useToonout ? "toonout" : "floodfill"}\``,
+    `- check: ${cfg.check === false ? "off" : "on"}`,
+  ].join("\n"));
+  const issuesMd = (issues: SheetCheck["issues"]) =>
+    issues.map((i) => `- ${i.cell ? `**${i.cell}** — ` : ""}${i.note}`).join("\n");
   let best: { sheet: RawImage; ordered: RawImage[]; seed: number; issues: SheetCheck["issues"] } | undefined;
   const consider = (cand: NonNullable<typeof best>) => {
     if (!best || cand.issues.length < best.issues.length) best = cand;
   };
   for (let n = 1; ; n++) {
     const built = await attempt(seed, n > 1 ? ` · retry ${n - 1}` : "");
+    report?.log(`## attempt ${n} — seed \`${seed}\``);
+    await report?.image("generated sheet", built.sheet);
+    const strip = makeSpriteSheet(built.ordered);
+    await report?.image("extracted spritesheet", strip);
     if (cfg.check === false) { best = { ...built, seed, issues: [] }; break; }
     let verdict: SheetCheck;
     try {
-      verdict = await checkSpritesheet(makeSpriteSheet(built.ordered), cfg.description);
+      verdict = await checkSpritesheet(strip, cfg.description);
     } catch (e) {
       console.error(`check skipped (${e instanceof Error ? e.message : e})`);
+      report?.log(`check skipped (${e instanceof Error ? e.message : e})`);
       best = { ...built, seed, issues: [] };
       break;
     }
     if (verdict.ok) {
       console.error("check: clean");
+      report?.log("check: **clean**");
       best = { ...built, seed, issues: [] };
       break;
     }
     for (const i of verdict.issues) console.error(`check: ${i.cell ?? "sheet"} — ${i.note}`);
+    report?.log(`check found ${verdict.issues.length} issue(s):\n\n${issuesMd(verdict.issues)}`);
     consider({ ...built, seed, issues: verdict.issues });
     try {
       const progress = startProgress(`${name} · fixing ${verdict.issues.length} issue(s)`, 45_000);
@@ -220,19 +245,29 @@ if (cmd === "build" || cmd === "gen" || cmd === "generate") {
         progress.done(`${name} · fixed`);
       }
       if (fixed.report) console.error(`fix: ${fixed.report.replace(/\s*\n\s*/g, " ")}`);
+      if (fixed.report) report?.log(`fix report: ${fixed.report}`);
       const ordered = fixed.cells;
-      const after = await checkSpritesheet(makeSpriteSheet(ordered), cfg.description);
+      const fixedStrip = makeSpriteSheet(ordered);
+      await report?.image("spritesheet after fix", fixedStrip);
+      const after = await checkSpritesheet(fixedStrip, cfg.description);
       if (after.ok) {
         console.error("check: clean after fix");
+        report?.log("check after fix: **clean**");
         best = { sheet: built.sheet, ordered, seed, issues: [] };
         break;
       }
       for (const i of after.issues) console.error(`check (after fix): ${i.cell ?? "sheet"} — ${i.note}`);
+      report?.log(`check after fix — ${after.issues.length} issue(s) remain:\n\n${issuesMd(after.issues)}`);
       consider({ sheet: built.sheet, ordered, seed, issues: after.issues });
     } catch (e) {
       console.error(`fix skipped (${e instanceof Error ? e.message : e})`);
+      report?.log(`fix skipped (${e instanceof Error ? e.message : e})`);
     }
-    if (!cfg.seedRolled) { console.error("check: seed is pinned — keeping the build"); break; }
+    if (!cfg.seedRolled) {
+      console.error("check: seed is pinned — keeping the build");
+      report?.log("seed is pinned — keeping the build as generated");
+      break;
+    }
     if (n >= MAX_ATTEMPTS) {
       console.error(`check: keeping the cleanest attempt (seed ${best!.seed}, ${best!.issues.length} issue(s))`);
       break;
@@ -241,6 +276,8 @@ if (cmd === "build" || cmd === "gen" || cmd === "generate") {
   }
   const { sheet, ordered } = best!;
   seed = best!.seed;
+  report?.log(`## result — seed \`${seed}\`, ${best!.issues.length} issue(s)`);
+  await report?.image("final spritesheet", makeSpriteSheet(ordered));
   if (cfg.outputs?.sheet) await writePng(join(cfg.output, cfg.outputs.sheet === true ? `${name}.sheet.png` : cfg.outputs.sheet), sheet);
   await writePng(join(cfg.output, `${name}.spritesheet.png`), makeSpriteSheet(ordered));
   await writeAnimatedWebp(join(cfg.output, `${name}.turntable.webp`), ordered, TURNTABLE_FPS);
@@ -248,7 +285,8 @@ if (cmd === "build" || cmd === "gen" || cmd === "generate") {
   writeFileSync(join(cfg.output, `${name}.entity.json`), JSON.stringify(entity, null, 2) + "\n");
   // the seed that actually produced the kept sheet, not the one we started with
   if (flags) writeFileSync(join(cfg.output, `${name}.sprited.yaml`), buildYaml({ ...cfg, seed }, flags.template, name));
-  const exts = ["spritesheet.png", "turntable.webp", "entity.json", ...(flags ? ["sprited.yaml"] : [])];
+  const exts = ["spritesheet.png", "turntable.webp", "entity.json",
+    ...(flags ? ["sprited.yaml"] : []), ...(cfg.report ? ["report.md"] : [])];
   console.log(`"${name}" -> ${cfg.output}/${name}.{${exts.join(",")}}`);
   process.exit(0);
 }

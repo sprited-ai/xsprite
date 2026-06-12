@@ -12,6 +12,18 @@ export async function readImage(path: string): Promise<RawImage> {
   return { width: info.width, height: info.height, data: new Uint8ClampedArray(data) };
 }
 
+export async function decodeImage(bytes: ArrayBuffer | Buffer): Promise<RawImage> {
+  const { data, info } = await sharp(Buffer.from(bytes as ArrayBuffer)).ensureAlpha().raw()
+    .toBuffer({ resolveWithObject: true });
+  return { width: info.width, height: info.height, data: new Uint8ClampedArray(data) };
+}
+
+export async function encodePng(img: RawImage): Promise<Buffer> {
+  return sharp(Buffer.from(img.data.buffer, img.data.byteOffset, img.data.byteLength), {
+    raw: { width: img.width, height: img.height, channels: 4 },
+  }).png().toBuffer();
+}
+
 export async function writePng(path: string, img: RawImage): Promise<void> {
   mkdirSync(dirname(path), { recursive: true });
   await sharp(Buffer.from(img.data.buffer, img.data.byteOffset, img.data.byteLength), {

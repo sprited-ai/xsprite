@@ -5,6 +5,7 @@ import sharp from "sharp";
 import { crop, createImage, paste, scaleNearest, type RawImage } from "../core/image.js";
 import { keyCell } from "../core/keyer.js";
 import { SPIN_ORDER } from "../core/extract.js";
+import { decodeImage, encodePng } from "./io.js";
 import { PACKAGE_ROOT } from "./pkg.js";
 
 export type Provider = "gemini" | "novita-seedream" | "novita-qwen";
@@ -32,18 +33,6 @@ function apiKey(envKey: string): string {
   throw new Error(`no ${envKey} in env, ./.env, or sprited/.env`);
 }
 
-async function toPngBuffer(img: RawImage): Promise<Buffer> {
-  return sharp(Buffer.from(img.data.buffer, img.data.byteOffset, img.data.byteLength), {
-    raw: { width: img.width, height: img.height, channels: 4 },
-  }).png().toBuffer();
-}
-
-async function fromBytes(bytes: ArrayBuffer | Buffer): Promise<RawImage> {
-  const { data, info } = await sharp(Buffer.from(bytes as ArrayBuffer)).ensureAlpha().raw()
-    .toBuffer({ resolveWithObject: true });
-  return { width: info.width, height: info.height, data: new Uint8ClampedArray(data) };
-}
-
 export interface GenerateOptions {
   provider?: Provider;
   model?: string;
@@ -55,7 +44,7 @@ export async function generateSheet(template: RawImage, prompt: string, opts: Ge
   const provider = opts.provider ?? "gemini";
   const model = opts.model ?? DEFAULT_MODEL[provider];
   const key = apiKey(opts.envKey ?? DEFAULT_ENV[provider]);
-  const png = await toPngBuffer(template);
+  const png = await encodePng(template);
   const b64 = png.toString("base64");
 
   if (provider === "gemini") {
@@ -81,7 +70,7 @@ export async function generateSheet(template: RawImage, prompt: string, opts: Ge
     const json = await res.json() as any;
     for (const part of json.candidates?.[0]?.content?.parts ?? []) {
       const d = part.inlineData ?? part.inline_data;
-      if (d) return fromBytes(Buffer.from(d.data, "base64"));
+      if (d) return decodeImage(Buffer.from(d.data, "base64"));
     }
     if (attempt < 1) continue;
     throw new Error("gemini returned no image");
@@ -102,7 +91,7 @@ export async function generateSheet(template: RawImage, prompt: string, opts: Ge
     });
     if (!res.ok) throw new Error(`seedream ${res.status}: ${(await res.text()).slice(0, 300)}`);
     const { images } = await res.json() as { images: string[] };
-    return fromBytes(await (await fetch(images[0])).arrayBuffer());
+    return decodeImage(await (await fetch(images[0])).arrayBuffer());
   }
 
   // novita-qwen (async task + poll)
@@ -124,7 +113,7 @@ export async function generateSheet(template: RawImage, prompt: string, opts: Ge
     const json = await poll.json() as any;
     const status = json.task?.status;
     if (status === "TASK_STATUS_SUCCEED") {
-      return fromBytes(await (await fetch(json.images[0].image_url)).arrayBuffer());
+      return decodeImage(await (await fetch(json.images[0].image_url)).arrayBuffer());
     }
     if (status === "TASK_STATUS_FAILED") throw new Error(`qwen failed: ${JSON.stringify(json).slice(0, 200)}`);
   }
@@ -261,7 +250,7 @@ async function checkPartConsistency(b64: string, key: string): Promise<SheetChec
  * descriptions; verdicts are computed in code from the observations. */
 export async function checkSpritesheet(sheet: RawImage, description?: string): Promise<SheetCheck> {
   const key = apiKey("GEMINI_API_KEY");
-  const b64 = (await toPngBuffer(sheet)).toString("base64");
+  const b64 = (await encodePng(sheet)).toString("base64");
   // part observation is flaky on borderline shapes even at temperature 0 —
   // three independent passes, union of findings
   const [facing, ...parts] = await Promise.all([
@@ -298,7 +287,7 @@ export async function buildFixGrid(cells: RawImage[], barH: number): Promise<Buf
     for (let c = 0; c < 3; c++) {
       const slot = FIX_GRID[r][c];
       if (slot === null) continue;
-      overlays.push({ input: await toPngBuffer(cells[slot]), left: c * cw, top: r * slotH });
+      overlays.push({ input: await encodePng(cells[slot]), left: c * cw, top: r * slotH });
       labels +=
         `<text x="${Math.round((c + 0.5) * cw)}" y="${Math.round(r * slotH + ch + barH * 0.7)}" ` +
         `font-family="sans-serif" font-size="${Math.round(barH * 0.5)}" text-anchor="middle" fill="black">${FACINGS[slot]}</text>`;
@@ -375,7 +364,7 @@ export async function fixSpritesheet(
     let report = "";
     for (const part of json.candidates?.[0]?.content?.parts ?? []) {
       const d = part.inlineData ?? part.inline_data;
-      if (d) image = await fromBytes(Buffer.from(d.data, "base64"));
+      if (d) image = await decodeImage(Buffer.from(d.data, "base64"));
       if (part.text) report += part.text;
     }
     if (image) return { cells: sliceFixGrid(image, cw, ch, barH), report: report.trim() || undefined };

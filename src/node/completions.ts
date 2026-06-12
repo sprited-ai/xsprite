@@ -26,6 +26,7 @@ export const ZSH = `_sprited() {
     '--template[builtin template]:template:(8dir-v1)'
     '--provider[model provider]:provider:(gemini novita-seedream novita-qwen)'
     '--no-check[skip the post-generation VLM check]'
+    '--report[write <name>.report.md with the build log and images]'
   )
   case \${words[2]} in
     gen)
@@ -88,7 +89,7 @@ export const BASH = `_sprited() {
   case $cur in
     -*)
       case $cmd in
-        gen|build) COMPREPLY=($(compgen -W "-d --description -r --reference --seed -o --output --sheet --template --provider --no-check" -- "$cur")) ;;
+        gen|build) COMPREPLY=($(compgen -W "-d --description -r --reference --seed -o --output --sheet --template --provider --no-check --report" -- "$cur")) ;;
         check) COMPREPLY=($(compgen -W "-d --description --fix -o --output" -- "$cur")) ;;
         extract) COMPREPLY=($(compgen -W "--row --skip-ref -o --output" -- "$cur")) ;;
         extract-anim) COMPREPLY=($(compgen -W "--frames --fps --canvas --row --skip-ref -o --output" -- "$cur")) ;;

@@ -64,6 +64,10 @@ export interface CharacterConfig {
    * regeneration with a fresh seed, keeping the cleanest attempt. */
   check?: boolean;
 
+  /** Write <name>.report.md — a streaming build log with every generated
+   * image inlined as a data URI (sheets, check verdicts, fix rounds). */
+  report?: boolean;
+
   outputs?: {
     /** Keep the raw filled sheet: true → <name>.sheet.png, or a filename. */
     sheet?: string | boolean;

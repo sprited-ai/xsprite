@@ -91,6 +91,7 @@ options beyond the basics (flag form / config field form):
 | `--template` | `template` | `8dir-v1` (bundled) | a builtin template name; config form also takes a full `{image, inputSlot, grid}` spec |
 | `--provider` | `model.provider` | `gemini` | also: `novita-seedream`, `novita-qwen` (need `NOVITA_API_KEY`) |
 | `--no-check` | `check: false` | check on | skip the post-generation VLM QC + auto-repair |
+| `--report` | `report: true` | off | stream a build log to `<name>.report.md` with every generated image inlined as a data URI |
 
 Already have a filled sheet, or an animation strip? Extract directly:
 

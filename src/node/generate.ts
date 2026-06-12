@@ -295,8 +295,10 @@ export async function buildFixGrid(cells: RawImage[], barH: number): Promise<Buf
   }
   const svg = `<svg width="${cw * 3}" height="${slotH * 3}" xmlns="http://www.w3.org/2000/svg">${labels}</svg>`;
   overlays.push({ input: Buffer.from(svg), left: 0, top: 0 });
+  // 0x888888 — the neutral gray the model already knows from the template's
+  // sprite panels, and far enough from sprite whites for clean re-keying
   return sharp({
-    create: { width: cw * 3, height: slotH * 3, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 1 } },
+    create: { width: cw * 3, height: slotH * 3, channels: 4, background: { r: 136, g: 136, b: 136, alpha: 1 } },
   }).composite(overlays).png().toBuffer();
 }
 

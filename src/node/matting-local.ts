@@ -57,7 +57,9 @@ function session(): Promise<any> {
     const path = await modelPath();
     // CPU only: the CoreML EP accepts the graph at create time, then fails
     // at run time on this model (grid_sample-heavy decoder)
-    return ort.InferenceSession.create(path, { executionProviders: ["cpu"] });
+    // errors only — session creation logs pages of benign constant-folding
+    // warnings otherwise
+    return ort.InferenceSession.create(path, { executionProviders: ["cpu"], logSeverityLevel: 3 });
   })());
 }
 

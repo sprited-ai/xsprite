@@ -33,7 +33,7 @@
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
   },
-  "repository": "github:sprited-ai/xsprite",
+  "repository": "github:sprited-ai/sprited",
   "keywords": [
     "sprites",
     "game-assets",

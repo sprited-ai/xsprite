@@ -6,7 +6,8 @@
  *   sprited extract-anim <sheet.png> --frames 8 [--row N] [--skip-ref N] [--fps 8] -o <dir>
  */
 import { parseArgs } from "node:util";
-import { join } from "node:path";
+import { join, relative } from "node:path";
+import YAML from "yaml";
 import { extractDirections, extractAnimation, SPIN_ORDER, GENERATED_DIRECTIONS, MIRRORED, type Direction } from "./core/extract.js";
 import { centerOnCanvas, createImage, paste, flipX, type RawImage } from "./core/image.js";
 import { toonoutMatting, hasReplicateToken } from "./node/matting.js";
@@ -44,7 +45,7 @@ function nameFromText(text?: string): string | undefined {
   return words.at(-1);
 }
 
-function configFromFlags(name: string | undefined, args: string[]): ResolvedConfig {
+function configFromFlags(name: string | undefined, args: string[]): { cfg: ResolvedConfig; template?: string } {
   const { values: b } = parseArgs({
     args,
     options: {
@@ -60,7 +61,7 @@ function configFromFlags(name: string | undefined, args: string[]): ResolvedConf
   if (b.seed !== undefined && b.seed !== "random" && !Number.isInteger(Number(b.seed))) {
     throw new Error(`--seed wants an integer or "random", got "${b.seed}"`);
   }
-  return resolveConfig({
+  const cfg = resolveConfig({
     name,
     description: b.description,
     reference: b.reference,
@@ -70,17 +71,42 @@ function configFromFlags(name: string | undefined, args: string[]): ResolvedConf
     model: b.provider ? { provider: b.provider as NonNullable<CharacterConfig["model"]>["provider"] } : undefined,
     outputs: b.sheet ? { sheet: true } : undefined,
   }, process.cwd());
+  // resolveConfig swaps the template name for its spec — keep the name for the yaml
+  return { cfg, template: b.template };
+}
+
+/** Flag builds drop a config next to the outputs, with the resolved name and
+ * seed baked in — `sprited build <name>.sprited.yaml` reruns the exact build.
+ * Paths are written relative to the yaml, which is how loadConfig reads them. */
+function buildYaml(cfg: ResolvedConfig, templateName: string | undefined, name: string): string {
+  return YAML.stringify({
+    name,
+    ...(cfg.description && { description: cfg.description }),
+    ...(cfg.reference && { reference: relative(cfg.output, cfg.reference) }),
+    seed: cfg.seed,
+    ...(templateName && { template: templateName }),
+    ...(cfg.model?.provider && { model: { provider: cfg.model.provider } }),
+    ...(cfg.outputs?.sheet && { outputs: { sheet: cfg.outputs.sheet } }),
+  });
 }
 
 if (cmd === "build" || cmd === "gen" || cmd === "generate") {
   let cfg: ResolvedConfig;
+  // set for flag-driven builds (vs a config file) — those also write a yaml
+  let flags: { cfg: ResolvedConfig; template?: string } | undefined;
   if (cmd === "build") {
-    cfg = /\.(ya?ml|json)$/.test(sheetPath) ? loadConfig(sheetPath) : configFromFlags(sheetPath, rest);
+    if (/\.(ya?ml|json)$/.test(sheetPath)) {
+      cfg = loadConfig(sheetPath);
+    } else {
+      flags = configFromFlags(sheetPath, rest);
+      cfg = flags.cfg;
+    }
   } else {
     // gen char[acter] [name] — everything defaults, flags optional
     if (!/^char(acter)?$/.test(sheetPath)) usage();
     const named = rest[0] !== undefined && !rest[0].startsWith("-");
-    cfg = configFromFlags(named ? rest[0] : undefined, named ? rest.slice(1) : rest);
+    flags = configFromFlags(named ? rest[0] : undefined, named ? rest.slice(1) : rest);
+    cfg = flags.cfg;
   }
   const template = await readImage(cfg.template!.image);
   // measure the extraction panel on the CLEAN template (before pasting a
@@ -143,7 +169,9 @@ if (cmd === "build" || cmd === "gen" || cmd === "generate") {
   await writeAnimatedWebp(join(cfg.output, `${name}.turntable.webp`), ordered, TURNTABLE_FPS);
   const entity = makeEntity(name, ordered[0].width, ordered[0].height, seed);
   writeFileSync(join(cfg.output, `${name}.entity.json`), JSON.stringify(entity, null, 2) + "\n");
-  console.log(`"${name}" -> ${cfg.output}/${name}.{spritesheet.png,turntable.webp,entity.json}`);
+  if (flags) writeFileSync(join(cfg.output, `${name}.sprited.yaml`), buildYaml(cfg, flags.template, name));
+  const exts = ["spritesheet.png", "turntable.webp", "entity.json", ...(flags ? ["sprited.yaml"] : [])];
+  console.log(`"${name}" -> ${cfg.output}/${name}.{${exts.join(",")}}`);
   process.exit(0);
 }
 

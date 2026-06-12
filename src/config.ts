@@ -92,11 +92,14 @@ export function resolveConfig(cfg: CharacterConfig, base: string): ResolvedConfi
   }
   // builtin template paths are already absolute, anchored at the package root
   const rel = (p: string) => resolve(base, p);
-  if (cfg.reference) cfg.reference = rel(cfg.reference);
   const template = typeof cfg.template === "object"
     ? { ...cfg.template, image: rel(cfg.template.image) }
     : { ...BUILTIN_TEMPLATES[templateName ?? DEFAULT_TEMPLATE] };
-  return { ...cfg, seed, template, output: rel(cfg.output ?? ".") };
+  return {
+    ...cfg,
+    ...(cfg.reference && { reference: rel(cfg.reference) }),
+    seed, template, output: rel(cfg.output ?? "."),
+  };
 }
 
 export function loadConfig(path: string): ResolvedConfig {

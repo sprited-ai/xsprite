@@ -44,8 +44,10 @@ GEMINI_API_KEY=... npx sprited build fairy -d "A small forest fairy with green w
 ```
 
 Have a reference image? Add `-r ./fairy.png` — or omit `-d` entirely and let
-the reference carry the look. For repeatable builds, put the same fields in a
-config file instead:
+the reference carry the look. Flag builds also drop a `fairy.sprited.yaml`
+next to the outputs with the name and seed baked in, so any one-off build can
+be re-run exactly. The same file is what you'd write by hand for a
+config-first workflow:
 
 ```yaml
 # fairy.sprited.yaml
@@ -64,6 +66,7 @@ Nano Banana Pro, extracts and keys the sprites, and writes:
 - `fairy.spritesheet.png` — 8 directions, one row
 - `fairy.turntable.webp` — animated turnaround
 - `fairy.entity.json` — sprite metadata (directions, states, seed)
+- `fairy.sprited.yaml` — flag builds only: the config that reproduces this build
 
 The key can also live in a `.env` file in your working directory. Useful
 options beyond the basics (flag form / config field form):

@@ -35,9 +35,9 @@ One command, zero config (needs a [Gemini API key](https://aistudio.google.com/a
 GEMINI_API_KEY=... npx sprited gen char
 ```
 
-That invents a character on the spot — and names it too: the model looks at
-what it drew and picks a fitting name (a flower-dress girl came back as
-`daisy.spritesheet.png`). Pass your own name and steer the look:
+That invents a character on the spot, filed as `char-001` (then `char-002`,
+and so on — whatever's next in the output directory). Pass your own name and
+steer the look:
 
 ```sh
 GEMINI_API_KEY=... npx sprited build fairy -d "A small forest fairy with green wings."

@@ -32,7 +32,7 @@ export const BUILTIN_TEMPLATES: Record<string, TemplateSpec> = {
 export const DEFAULT_TEMPLATE = "8dir-v1";
 
 export interface CharacterConfig {
-  /** Output/entity name. Omit to auto-name from the seed. */
+  /** Output/entity name. Omit for the next free char-NNN in the output dir. */
   name?: string;
   /** Reference image path. Omit to let the model invent the character. */
   reference?: string;
@@ -68,19 +68,6 @@ export interface CharacterConfig {
 export type ResolvedConfig = CharacterConfig & {
   seed: number; template: TemplateSpec; output: string;
 };
-
-// fallback names when neither the user nor the model supplies one —
-// seed-derived: same seed -> same name, same look
-const ADJ = ["amber", "brisk", "cinder", "dapple", "ember", "fable", "gleam",
-  "hazel", "ivory", "jade", "keen", "lunar", "moss", "nimble", "ochre",
-  "pebble", "quill", "rusty", "sage", "thistle", "umber", "velvet", "wisp"];
-const NOUN = ["badger", "crow", "drake", "fawn", "gnome", "heron", "imp",
-  "knight", "lark", "mole", "newt", "otter", "pixie", "quail", "rogue",
-  "sprite", "toad", "urchin", "vole", "wren"];
-
-export function seedName(seed: number): string {
-  return `${ADJ[seed % ADJ.length]}-${NOUN[(seed >> 8) % NOUN.length]}`;
-}
 
 /** Validate, roll the seed, and resolve relative paths against `base` — the
  * config file's directory, or cwd when the config came from CLI flags. */

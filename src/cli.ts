@@ -13,12 +13,12 @@ import { centerOnCanvas, createImage, paste, flipX, type RawImage } from "./core
 import { toonoutMatting, hasReplicateToken } from "./node/matting.js";
 import { makeSpriteSheet } from "./core/sheet.js";
 import { makeEntity } from "./core/entity.js";
-import { writeFileSync } from "node:fs";
+import { writeFileSync, readdirSync, existsSync } from "node:fs";
 import { readImage, writePng, writeAnimatedWebp } from "./node/io.js";
-import { loadConfig, resolveConfig, seedName } from "./config.js";
+import { loadConfig, resolveConfig } from "./config.js";
 import type { CharacterConfig, ResolvedConfig } from "./config.js";
 import { startProgress } from "./node/progress.js";
-import { generateSheet, defaultPrompt, nameCharacter } from "./node/generate.js";
+import { generateSheet, defaultPrompt } from "./node/generate.js";
 import { pasteIntoSlot } from "./core/image.js";
 
 const [cmd, sheetPath, ...rest] = process.argv.slice(2);
@@ -37,12 +37,17 @@ function usage(): never {
 
 if (!cmd || !sheetPath) usage();
 
-/** "Her name is Elara." -> "elara". Last plausible word of the model's text
- * reply, hard-sanitized since it becomes a filename. */
-function nameFromText(text?: string): string | undefined {
-  const words = (text ?? "").toLowerCase().replace(/[^a-z\s-]/g, " ").split(/\s+/)
-    .filter((w) => /^[a-z][a-z-]{2,15}$/.test(w) && !["name", "named", "the", "character", "her", "his", "she", "here"].includes(w));
-  return words.at(-1);
+/** Next free char-NNN in the output dir — predictable, sortable filenames
+ * for unnamed builds. */
+function nextCharName(dir: string): string {
+  const used = new Set<number>();
+  for (const f of existsSync(dir) ? readdirSync(dir) : []) {
+    const m = /^char-(\d+)\./.exec(f);
+    if (m) used.add(Number(m[1]));
+  }
+  let n = 1;
+  while (used.has(n)) n++;
+  return `char-${String(n).padStart(3, "0")}`;
 }
 
 function configFromFlags(name: string | undefined, args: string[]): { cfg: ResolvedConfig; template?: string } {
@@ -119,13 +124,14 @@ if (cmd === "build" || cmd === "gen" || cmd === "generate") {
   }
   const prompt = defaultPrompt(Boolean(cfg.reference), cfg.description);
   const { seed } = cfg;
+  const name = cfg.name ?? nextCharName(cfg.output);
   const provider = cfg.model?.provider ?? "gemini";
-  const progress = startProgress(`${cfg.name ?? "unnamed"} · ${provider} · seed ${seed}`, provider === "gemini" ? 45_000 : 60_000);
+  const progress = startProgress(`${name} · ${provider} · seed ${seed}`, provider === "gemini" ? 45_000 : 60_000);
   let sheet;
   try {
     sheet = await generateSheet(template, prompt, { ...cfg.model, seed });
   } finally {
-    progress.done(`${cfg.name ?? "unnamed"} · generated`);
+    progress.done(`${name} · generated`);
   }
   const s = sheet.width / template.width;
   const g = cfg.template!.grid;
@@ -160,10 +166,6 @@ if (cmd === "build" || cmd === "gen" || cmd === "generate") {
     sprites = extractDirections(sheet, { panel });
   }
   const ordered = SPIN_ORDER.map((d) => sprites[d]);
-  // no name given: show the model its creation, let it pick the name
-  const name = cfg.name
-    ?? nameFromText(await nameCharacter(ordered[0]).catch(() => undefined))
-    ?? seedName(seed);
   if (cfg.outputs?.sheet) await writePng(join(cfg.output, cfg.outputs.sheet === true ? `${name}.sheet.png` : cfg.outputs.sheet), sheet);
   await writePng(join(cfg.output, `${name}.spritesheet.png`), makeSpriteSheet(ordered));
   await writeAnimatedWebp(join(cfg.output, `${name}.turntable.webp`), ordered, TURNTABLE_FPS);

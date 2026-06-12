@@ -1,4 +1,4 @@
-# xsprite
+# sprited
 
 Open workflow for generating **8-direction game character sprites** from a
 single reference image, using template-guided image models (Nano Banana Pro
@@ -48,14 +48,14 @@ the reference carry the look. For repeatable builds, put the same fields in a
 config file instead:
 
 ```yaml
-# fairy.xsprite.yaml
+# fairy.sprited.yaml
 name: fairy
 description: "A small forest fairy with green wings."
 reference: ./fairy.png   # optional — omit to let the model invent the look
 ```
 
 ```sh
-GEMINI_API_KEY=... npx sprited build fairy.xsprite.yaml
+GEMINI_API_KEY=... npx sprited build fairy.sprited.yaml
 ```
 
 Either way the call composes the bundled 8-direction template, generates via
@@ -88,13 +88,13 @@ npx sprited extract-anim walk-sheet.png --frames 8 --fps 8 -o out/walk-S
 ```sh
 pnpm install
 cp .env.example .env   # add your GEMINI_API_KEY
-npx tsx src/cli.ts build examples/lisa.xsprite.yaml
+npx tsx src/cli.ts build examples/lisa.sprited.yaml
 ```
 
-`examples/` is flat: each character is a config (`<name>.xsprite.yaml`), its
+`examples/` is flat: each character is a config (`<name>.sprited.yaml`), its
 reference (`<name>.reference.png`), and the outputs it produces
 (`<name>.spritesheet.png`, `<name>.turntable.webp`, `<name>.entity.json`).
-Copy an `.xsprite.yaml` to start your own character.
+Copy an `.sprited.yaml` to start your own character.
 
 The pipeline core (`src/core`) is pure TypeScript on `ImageData`-shaped
 buffers — no Node APIs — so the same code runs in the browser; only file IO

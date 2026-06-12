@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-/** xsprite CLI.
+/** sprited CLI.
  *
- *   xsprite build <character.yaml>
- *   xsprite extract <sheet.png> [--row N] [--skip-ref N] -o <dir>
- *   xsprite extract-anim <sheet.png> --frames 8 [--row N] [--skip-ref N] [--fps 8] -o <dir>
+ *   sprited build <character.yaml>
+ *   sprited extract <sheet.png> [--row N] [--skip-ref N] -o <dir>
+ *   sprited extract-anim <sheet.png> --frames 8 [--row N] [--skip-ref N] [--fps 8] -o <dir>
  */
 import { parseArgs } from "node:util";
 import { join } from "node:path";
@@ -28,7 +28,7 @@ const TURNTABLE_FPS = 2.4;
 function usage(): never {
   console.error('usage: sprited gen char [name] [-d "description"] [-r reference.png] [--seed N] [-o dir] [--sheet]');
   console.error('       sprited build <name> [flags as above]');
-  console.error("       sprited build <name.xsprite.yaml|json>");
+  console.error("       sprited build <name.sprited.yaml|json>");
   console.error("       sprited extract <sheet.png> [--row N] [--skip-ref N] -o <dir>");
   console.error("       sprited extract-anim <sheet.png> --frames N [--row N] [--skip-ref N] [--fps N] [--canvas 256] -o <dir>");
   process.exit(1);

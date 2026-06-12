@@ -1,4 +1,4 @@
-/** Character config — declare a character once, `xsprite build` does the rest:
+/** Character config — declare a character once, `sprited build` does the rest:
  * compose reference into the template, generate via the model, extract, key,
  * assemble. JSON or YAML. */
 import { readFileSync } from "node:fs";
@@ -23,7 +23,7 @@ export interface TemplateSpec {
  * image paths and slot coordinates. */
 export const BUILTIN_TEMPLATES: Record<string, TemplateSpec> = {
   "8dir-v1": {
-    image: join(PACKAGE_ROOT, "templates", "xsprite-8dir-v1.png"),
+    image: join(PACKAGE_ROOT, "templates", "sprited-8dir-v1.png"),
     inputSlot: { x: 32, y: 352, width: 160, height: 256 },
     grid: { x: 192, y: 352, cellWidth: 160, cellHeight: 256, columns: 5 },
   },

@@ -54,6 +54,28 @@ export function scaleNearest(img: RawImage, factor: number): RawImage {
   return out;
 }
 
+/** Bilinear resize (RGBA). Nearest keeps pixel art crisp for display;
+ * bilinear is for model I/O, where nets expect smooth resampling. */
+export function resizeBilinear(img: RawImage, w: number, h: number): RawImage {
+  const out = createImage(w, h);
+  const sx = img.width / w, sy = img.height / h;
+  for (let y = 0; y < h; y++) {
+    const fy = Math.max(0, Math.min(img.height - 1, (y + 0.5) * sy - 0.5));
+    const y0 = Math.floor(fy), y1 = Math.min(img.height - 1, y0 + 1), wy = fy - y0;
+    for (let x = 0; x < w; x++) {
+      const fx = Math.max(0, Math.min(img.width - 1, (x + 0.5) * sx - 0.5));
+      const x0 = Math.floor(fx), x1 = Math.min(img.width - 1, x0 + 1), wx = fx - x0;
+      for (let c = 0; c < 4; c++) {
+        const v00 = img.data[(y0 * img.width + x0) * 4 + c], v01 = img.data[(y0 * img.width + x1) * 4 + c];
+        const v10 = img.data[(y1 * img.width + x0) * 4 + c], v11 = img.data[(y1 * img.width + x1) * 4 + c];
+        out.data[(y * w + x) * 4 + c] =
+          v00 * (1 - wx) * (1 - wy) + v01 * wx * (1 - wy) + v10 * (1 - wx) * wy + v11 * wx * wy;
+      }
+    }
+  }
+  return out;
+}
+
 /** Alpha-composite onto a solid background (for GIF frames). */
 export function compositeOn(img: RawImage, bg: [number, number, number]): RawImage {
   const out = createImage(img.width, img.height);

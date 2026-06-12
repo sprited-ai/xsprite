@@ -1,0 +1,25 @@
+<!doctype html>
+<!-- Browser verification for sprited/toonout: mattes lisa cells fully
+     client-side via onnxruntime-web. `npx vite experiments/004-web-toonout` -->
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>sprited/toonout — browser test</title>
+  <style>
+    body { font: 14px ui-monospace, monospace; background: #1e1e1e; color: #ddd; padding: 24px; }
+    #status { margin-bottom: 16px; white-space: pre-line; }
+    .row { display: flex; gap: 24px; }
+    figure { margin: 0; }
+    figcaption { margin-bottom: 8px; color: #999; }
+    canvas { background: repeating-conic-gradient(#333 0% 25%, #444 0% 50%) 0 0 / 16px 16px; image-rendering: pixelated; width: 320px; }
+  </style>
+</head>
+<body>
+  <div id="status">loading…</div>
+  <div class="row">
+    <figure><figcaption>input (S cell, flattened)</figcaption><canvas id="before"></canvas></figure>
+    <figure><figcaption>matted (local onnx)</figcaption><canvas id="after"></canvas></figure>
+  </div>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>

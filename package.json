@@ -11,14 +11,19 @@
     "sprited": "./dist/cli.js"
   },
   "exports": {
-    ".": "./dist/core/index.js"
+    ".": "./dist/core/index.js",
+    "./toonout": {
+      "browser": "./dist/web/toonout.js",
+      "default": "./dist/node/toonout.js"
+    },
+    "./build": "./dist/node/build.js"
   },
   "files": [
     "dist",
     "templates"
   ],
   "scripts": {
-    "build": "tsup src/cli.ts src/core/index.ts --format esm --dts --clean",
+    "build": "tsup src/cli.ts src/core/index.ts src/node/build.ts src/node/toonout.ts src/web/toonout.ts --format esm --dts --clean",
     "dev": "tsx src/cli.ts",
     "test": "vitest run"
   },
@@ -28,9 +33,11 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "onnxruntime-web": "^1.26.0",
     "tsup": "^8.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
+    "vite": "^8.0.16",
     "vitest": "^2.1.0"
   },
   "repository": "github:sprited-ai/sprited",
@@ -43,5 +50,13 @@
   ],
   "optionalDependencies": {
     "onnxruntime-node": "^1.26.0"
+  },
+  "peerDependencies": {
+    "onnxruntime-web": ">=1.26.0"
+  },
+  "peerDependenciesMeta": {
+    "onnxruntime-web": {
+      "optional": true
+    }
   }
 }

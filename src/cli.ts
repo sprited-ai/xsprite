@@ -8,21 +8,18 @@
 import { parseArgs } from "node:util";
 import { join, relative } from "node:path";
 import YAML from "yaml";
-import { extractDirections, extractAnimation, SPIN_ORDER, GENERATED_DIRECTIONS, MIRRORED, type Direction } from "./core/extract.js";
-import { centerOnCanvas, createImage, paste, flipX, scaleNearest, type RawImage } from "./core/image.js";
-import { toonoutMatting, hasReplicateToken } from "./node/matting.js";
-import { localToonoutMatting, hasLocalToonout } from "./node/matting-local.js";
+import { extractDirections, extractAnimation, SPIN_ORDER } from "./core/extract.js";
+import { centerOnCanvas } from "./core/image.js";
 import { makeSpriteSheet } from "./core/sheet.js";
-import { makeEntity } from "./core/entity.js";
-import { writeFileSync, readdirSync, existsSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { readImage, writePng, writeAnimatedWebp, writeBytes } from "./node/io.js";
 import { loadConfig, resolveConfig } from "./config.js";
 import type { CharacterConfig, ResolvedConfig } from "./config.js";
 import { startProgress } from "./node/progress.js";
-import { startReport, type Reporter } from "./node/report.js";
+import { startReport } from "./node/report.js";
 import { ZSH, BASH } from "./node/completions.js";
-import { generateSheet, defaultPrompt, checkSpritesheet, fixSpritesheet, type SheetCheck } from "./node/generate.js";
-import { pasteIntoSlot } from "./core/image.js";
+import { checkSpritesheet, fixSpritesheet } from "./node/generate.js";
+import { buildCharacter, nextCharName } from "./node/build.js";
 
 const [cmd, sheetPath, ...rest] = process.argv.slice(2);
 
@@ -50,18 +47,6 @@ if (cmd === "completion") {
 
 if (!cmd || !sheetPath) usage();
 
-/** Next free char-NNN in the output dir — predictable, sortable filenames
- * for unnamed builds. */
-function nextCharName(dir: string): string {
-  const used = new Set<number>();
-  for (const f of existsSync(dir) ? readdirSync(dir) : []) {
-    const m = /^char-(\d+)\./.exec(f);
-    if (m) used.add(Number(m[1]));
-  }
-  let n = 1;
-  while (used.has(n)) n++;
-  return `char-${String(n).padStart(3, "0")}`;
-}
 
 function configFromFlags(name: string | undefined, args: string[]): { cfg: ResolvedConfig; template?: string } {
   const { values: b } = parseArgs({
@@ -147,146 +132,32 @@ if (cmd === "build" || cmd === "gen" || cmd === "generate") {
     flags = configFromFlags(named ? rest[0] : undefined, named ? rest.slice(1) : rest);
     cfg = flags.cfg;
   }
-  const template = await readImage(cfg.template!.image);
-  // measure the extraction panel on the CLEAN template (before pasting a
-  // reference whose background could fuse with the panel), then scale to
-  // the generated sheet's dimensions
-  const cleanPanels = (await import("./core/extract.js")).findPanels(template);
-  const cleanPanel = cleanPanels[cfg.template!.row ?? cleanPanels.length - 1];
-  if (cfg.reference && cfg.template!.inputSlot) {
-    pasteIntoSlot(template, await readImage(cfg.reference), cfg.template!.inputSlot);
-  }
-  const prompt = defaultPrompt(Boolean(cfg.reference), cfg.description);
+  // resolve the name up front — the report and intermediate paths carry it
   const name = cfg.name ?? nextCharName(cfg.output);
-  const provider = cfg.model?.provider ?? "gemini";
-  // toonout by default — best edges; floodfill is the explicit opt-out.
-  // Local ONNX first (no network, no credits), the Replicate endpoint when
-  // onnxruntime-node isn't installed, floodfill as the last resort.
-  let matting: "local" | "replicate" | "floodfill" = "floodfill";
-  if (cfg.matting !== "floodfill") {
-    if (await hasLocalToonout()) matting = "local";
-    else if (hasReplicateToken()) matting = "replicate";
-    else if (cfg.matting === "toonout") {
-      console.error("warning: matting: toonout requested but neither onnxruntime-node nor REPLICATE_API_TOKEN is available — falling back to the built-in color keyer");
-    }
-  }
-
-  /** One generation pass: model call + extraction into SPIN_ORDER cells. */
-  async function attempt(seed: number, label: string): Promise<{ sheet: RawImage; ordered: RawImage[] }> {
-    const progress = startProgress(`${name} · ${provider} · seed ${seed}${label}`, provider === "gemini" ? 45_000 : 60_000);
-    let sheet: RawImage;
-    try {
-      sheet = await generateSheet(template, prompt, { ...cfg.model, seed });
-    } finally {
-      progress.done(`${name} · generated${label}`);
-    }
-    const s = sheet.width / template.width;
-    const g = cfg.template!.grid;
-    const rect = g
-      ? { x: g.x, y: g.y, width: g.cellWidth * g.columns, height: g.cellHeight }
-      : cleanPanel;
-    const panel = rect && {
-      x: Math.round(rect.x * s), y: Math.round(rect.y * s),
-      width: Math.round(rect.width * s), height: Math.round(rect.height * s),
-    };
-    let sprites: Record<Direction, RawImage>;
-    if (matting !== "floodfill") {
-      const inset = 4;
-      const rawCells = extractDirections(sheet, { panel, raw: true, inset });
-      const rawList = GENERATED_DIRECTIONS.map((d) => rawCells[d]);
-      console.error(matting === "local"
-        ? "matting via local birefnet-toonout (onnxruntime)..."
-        : "matting via sprited/birefnet-toonout on Replicate (cold boot can take ~2min)...");
-      const matted = matting === "local" ? await localToonoutMatting(rawList) : await toonoutMatting(rawList);
-      const pad = (img: RawImage): RawImage => {
-        const padded = createImage(img.width + 2 * inset, img.height + 2 * inset, [0, 0, 0, 0]);
-        paste(padded, img, inset, inset);
-        return padded;
-      };
-      sprites = {} as Record<Direction, RawImage>;
-      GENERATED_DIRECTIONS.forEach((d, i) => { sprites[d] = pad(matted[i]); });
-      for (const [dst, src] of Object.entries(MIRRORED)) sprites[dst as Direction] = flipX(sprites[src as Direction]);
-    } else {
-      sprites = extractDirections(sheet, { panel });
-    }
-    return { sheet, ordered: SPIN_ORDER.map((d) => sprites[d]) };
-  }
-
-  // generate, then hand the result to the image model itself: "find errors,
-  // fix them, report" — no pre-computed issue list. maxFixes rounds (default
-  // 1), each feeding the previous round's output back; a NO ERRORS reply
-  // keeps the current cells untouched.
-  const seed = cfg.seed;
-  // opt-in build log: every step appended as it happens, images inlined
-  const report: Reporter | undefined = cfg.report
+  cfg = { ...cfg, name };
+  const report = cfg.report
     ? startReport(join(cfg.output, `${name}.report.md`), `${name} — build report`)
     : undefined;
-  const maxFixes = cfg.check === false ? 0 : Math.max(0, cfg.maxFixes ?? 1);
-  // --intermediate: every pipeline image also lands as a numbered PNG
   let stepN = 0;
-  const saveStep = async (label: string, img: RawImage | Buffer) => {
-    if (!cfg.intermediate) return;
-    const file = join(cfg.output, `${name}.intermediate`, `${String(++stepN).padStart(2, "0")}-${label}.png`);
-    if (Buffer.isBuffer(img)) writeBytes(file, img);
-    else await writePng(file, img);
-  };
-  report?.log([
-    `- provider: \`${provider}\``,
-    `- seed: \`${seed}\` (${cfg.seedRolled ? "rolled" : "pinned"})`,
-    ...(cfg.description ? [`- description: ${cfg.description}`] : []),
-    ...(cfg.reference ? [`- reference: \`${cfg.reference}\``] : []),
-    `- matting: \`${matting === "floodfill" ? "floodfill" : `toonout (${matting})`}\``,
-    `- review/fix rounds: ${maxFixes}`,
-  ].join("\n"));
-  report?.log("generation prompt:\n\n```\n" + prompt + "\n```");
-  await report?.image("composed template (model input)", template);
-  await saveStep("template", template);
-
-  const built = await attempt(seed, "");
-  report?.log(`## generation — seed \`${seed}\``);
-  await report?.image("generated sheet", built.sheet);
-  await saveStep("generated-sheet", built.sheet);
-  const { sheet } = built;
-  let ordered = built.ordered;
-  await report?.image("extracted spritesheet", makeSpriteSheet(ordered));
-  await saveStep("spritesheet", makeSpriteSheet(ordered));
-
-  for (let f = 1; f <= maxFixes; f++) {
-    try {
-      const progress = startProgress(`${name} · review & fix${maxFixes > 1 ? ` ${f}/${maxFixes}` : ""}`, 45_000);
-      let r;
-      try {
-        r = await fixSpritesheet(ordered, cfg.description, { ...cfg.model, seed });
-      } finally {
-        progress.done(`${name} · reviewed`);
-      }
-      report?.log(`## review round ${f}`);
-      report?.png("review input — 3x3 grid", r.gridPng);
-      await saveStep(`review${f}-grid`, r.gridPng);
-      if (r.report) {
-        console.error(`review: ${r.report.replace(/\s*\n\s*/g, " ")}`);
-        report?.log(`review report: ${r.report}`);
-      }
-      if (r.clean) break;
-      ordered = r.cells;
-      if (r.raw) {
-        await report?.image("review output (raw)", r.raw);
-        await saveStep(`review${f}-raw`, r.raw);
-      }
-      await report?.image("spritesheet after fix", makeSpriteSheet(ordered));
-      await saveStep(`review${f}-spritesheet`, makeSpriteSheet(ordered));
-    } catch (e) {
-      console.error(`review skipped (${e instanceof Error ? e.message : e})`);
-      report?.log(`review skipped (${e instanceof Error ? e.message : e})`);
-      break;
-    }
-  }
-  report?.log(`## result — seed \`${seed}\``);
-  await report?.image("final spritesheet", makeSpriteSheet(ordered));
+  const { seed, sheet, cells, spritesheet, entity } = await buildCharacter(cfg, {
+    log: (line) => console.error(line),
+    progress: (label, expectedMs) => {
+      const p = startProgress(label, expectedMs);
+      return (finalLabel) => p.done(finalLabel);
+    },
+    reporter: report,
+    // --intermediate: every pipeline image also lands as a numbered PNG
+    stage: cfg.intermediate
+      ? async (label, img) => {
+          const file = join(cfg.output, `${name}.intermediate`, `${String(++stepN).padStart(2, "0")}-${label}.png`);
+          if (Buffer.isBuffer(img)) writeBytes(file, img);
+          else await writePng(file, img);
+        }
+      : undefined,
+  });
   if (cfg.outputs?.sheet) await writePng(join(cfg.output, cfg.outputs.sheet === true ? `${name}.sheet.png` : cfg.outputs.sheet), sheet);
-  await writePng(join(cfg.output, `${name}.spritesheet.png`), makeSpriteSheet(ordered));
-  await writeAnimatedWebp(join(cfg.output, `${name}.turntable.webp`), ordered, TURNTABLE_FPS);
-  const entity = makeEntity(name, ordered[0].width, ordered[0].height, seed);
+  await writePng(join(cfg.output, `${name}.spritesheet.png`), spritesheet);
+  await writeAnimatedWebp(join(cfg.output, `${name}.turntable.webp`), cells, TURNTABLE_FPS);
   writeFileSync(join(cfg.output, `${name}.entity.json`), JSON.stringify(entity, null, 2) + "\n");
   // the seed that actually produced the kept sheet, not the one we started with
   if (flags) writeFileSync(join(cfg.output, `${name}.sprited.yaml`), buildYaml({ ...cfg, seed }, flags.template, name));

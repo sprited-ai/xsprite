@@ -104,6 +104,20 @@ npx sprited extract sheet.png --row 1 -o out/my-character
 npx sprited extract-anim walk-sheet.png --frames 8 --fps 8 -o out/walk-S
 ```
 
+The matting model is importable on its own — same API in Node and the
+browser (bundlers pick `onnxruntime-web` via the `browser` export condition;
+Node uses `onnxruntime-node`; both try WebGPU first and fall back to
+CPU/WASM):
+
+```ts
+import { toonoutMatting } from "sprited/toonout";
+const matted = await toonoutMatting(cells); // RawImage[] in, RawImage[] out
+```
+
+In the browser, install `onnxruntime-web` alongside; the model (~470MB,
+[sprited/birefnet-toonout-onnx](https://huggingface.co/sprited/birefnet-toonout-onnx))
+is fetched once and kept in the Cache API.
+
 Tab completion for commands, flags, and flag values (needs `sprited` on your
 PATH, e.g. `npm i -g sprited` — the shell can't complete one-off `npx` runs):
 

@@ -64,9 +64,19 @@ export interface CharacterConfig {
    * regeneration with a fresh seed, keeping the cleanest attempt. */
   check?: boolean;
 
+  /** Max in-place repair rounds per generation attempt when the check finds
+   * defects (default 1; 0 = check only, defects go straight to a fresh-seed
+   * regeneration). Each round feeds the previous round's output back. */
+  maxFixes?: number;
+
   /** Write <name>.report.md — a streaming build log with every generated
    * image inlined as a data URI (sheets, check verdicts, fix rounds). */
   report?: boolean;
+
+  /** Also drop every intermediate image (composed template, generated sheet,
+   * review grids and raw outputs, per-round spritesheets) as numbered PNGs
+   * under <name>.intermediate/. */
+  intermediate?: boolean;
 
   outputs?: {
     /** Keep the raw filled sheet: true → <name>.sheet.png, or a filename. */

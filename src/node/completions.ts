@@ -25,8 +25,11 @@ export const ZSH = `_sprited() {
     '--sheet[keep the raw generated sheet]'
     '--template[builtin template]:template:(8dir-v1)'
     '--provider[model provider]:provider:(gemini novita-seedream novita-qwen)'
-    '--no-check[skip the post-generation VLM check]'
+    '--matting[background removal]:matting:(floodfill toonout)'
+    '--no-check[skip the post-generation review/fix]'
+    '--max-fixes[max review/fix rounds (default 1)]:rounds:'
     '--report[write <name>.report.md with the build log and images]'
+    '--intermediate[write intermediate images under <name>.intermediate/]'
   )
   case \${words[2]} in
     gen)
@@ -82,6 +85,7 @@ export const BASH = `_sprited() {
   cmd=\${COMP_WORDS[1]}
   case $prev in
     --provider) COMPREPLY=($(compgen -W "gemini novita-seedream novita-qwen" -- "$cur")); return ;;
+    --matting) COMPREPLY=($(compgen -W "floodfill toonout" -- "$cur")); return ;;
     --template) COMPREPLY=($(compgen -W "8dir-v1" -- "$cur")); return ;;
     -o|--output) COMPREPLY=($(compgen -d -- "$cur")); return ;;
     -r|--reference) COMPREPLY=($(compgen -f -- "$cur")); return ;;
@@ -89,7 +93,7 @@ export const BASH = `_sprited() {
   case $cur in
     -*)
       case $cmd in
-        gen|build) COMPREPLY=($(compgen -W "-d --description -r --reference --seed -o --output --sheet --template --provider --no-check --report" -- "$cur")) ;;
+        gen|build) COMPREPLY=($(compgen -W "-d --description -r --reference --seed -o --output --sheet --template --provider --matting --no-check --max-fixes --report --intermediate" -- "$cur")) ;;
         check) COMPREPLY=($(compgen -W "-d --description --fix -o --output" -- "$cur")) ;;
         extract) COMPREPLY=($(compgen -W "--row --skip-ref -o --output" -- "$cur")) ;;
         extract-anim) COMPREPLY=($(compgen -W "--frames --fps --canvas --row --skip-ref -o --output" -- "$cur")) ;;

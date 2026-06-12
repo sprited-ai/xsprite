@@ -14,7 +14,7 @@ import { toonoutMatting, hasReplicateToken } from "./node/matting.js";
 import { makeSpriteSheet } from "./core/sheet.js";
 import { makeEntity } from "./core/entity.js";
 import { writeFileSync, readdirSync, existsSync } from "node:fs";
-import { readImage, writePng, writeAnimatedWebp } from "./node/io.js";
+import { readImage, writePng, writeAnimatedWebp, writeBytes } from "./node/io.js";
 import { loadConfig, resolveConfig } from "./config.js";
 import type { CharacterConfig, ResolvedConfig } from "./config.js";
 import { startProgress } from "./node/progress.js";
@@ -29,7 +29,7 @@ const [cmd, sheetPath, ...rest] = process.argv.slice(2);
 const TURNTABLE_FPS = 2.4;
 
 function usage(): never {
-  console.error('usage: sprited gen char [name] [-d "description"] [-r reference.png] [--seed N] [-o dir] [--sheet] [--no-check] [--report]');
+  console.error('usage: sprited gen char [name] [-d "description"] [-r reference.png] [--seed N] [-o dir] [--sheet] [--matting floodfill|toonout] [--no-check] [--max-fixes N] [--report] [--intermediate]');
   console.error('       sprited build <name> [flags as above]');
   console.error("       sprited build <name.sprited.yaml|json>");
   console.error("       sprited extract <sheet.png> [--row N] [--skip-ref N] -o <dir>");
@@ -73,10 +73,19 @@ function configFromFlags(name: string | undefined, args: string[]): { cfg: Resol
       sheet: { type: "boolean" },
       template: { type: "string" },
       provider: { type: "string" },
+      matting: { type: "string" },
       "no-check": { type: "boolean" },
+      "max-fixes": { type: "string" },
       report: { type: "boolean" },
+      intermediate: { type: "boolean" },
     },
   });
+  if (b.matting !== undefined && b.matting !== "floodfill" && b.matting !== "toonout") {
+    throw new Error(`--matting wants "floodfill" or "toonout", got "${b.matting}"`);
+  }
+  if (b["max-fixes"] !== undefined && !Number.isInteger(Number(b["max-fixes"]))) {
+    throw new Error(`--max-fixes wants an integer, got "${b["max-fixes"]}"`);
+  }
   if (b.seed !== undefined && b.seed !== "random" && !Number.isInteger(Number(b.seed))) {
     throw new Error(`--seed wants an integer or "random", got "${b.seed}"`);
   }
@@ -89,8 +98,11 @@ function configFromFlags(name: string | undefined, args: string[]): { cfg: Resol
     template: b.template,
     model: b.provider ? { provider: b.provider as NonNullable<CharacterConfig["model"]>["provider"] } : undefined,
     outputs: b.sheet ? { sheet: true } : undefined,
+    matting: b.matting as CharacterConfig["matting"],
     check: b["no-check"] ? false : undefined,
+    maxFixes: b["max-fixes"] !== undefined ? Number(b["max-fixes"]) : undefined,
     report: b.report || undefined,
+    intermediate: b.intermediate || undefined,
   }, process.cwd());
   // resolveConfig swaps the template name for its spec — keep the name for the yaml
   return { cfg, template: b.template };
@@ -108,8 +120,11 @@ function buildYaml(cfg: ResolvedConfig, templateName: string | undefined, name: 
     ...(templateName && { template: templateName }),
     ...(cfg.model?.provider && { model: { provider: cfg.model.provider } }),
     ...(cfg.outputs?.sheet && { outputs: { sheet: cfg.outputs.sheet } }),
+    ...(cfg.matting && { matting: cfg.matting }),
     ...(cfg.check === false && { check: false }),
+    ...(cfg.maxFixes !== undefined && { maxFixes: cfg.maxFixes }),
     ...(cfg.report && { report: true }),
+    ...(cfg.intermediate && { intermediate: true }),
   });
 }
 
@@ -188,95 +203,76 @@ if (cmd === "build" || cmd === "gen" || cmd === "generate") {
     return { sheet, ordered: SPIN_ORDER.map((d) => sprites[d]) };
   }
 
-  // generate → VLM QC → on defects, first a targeted in-place fix by the
-  // image model (keeps the character), then — rolled seeds only, a pinned
-  // seed is a reproduction request — a fresh-seed regen. Cleanest wins.
-  const MAX_ATTEMPTS = 2;
-  let seed = cfg.seed;
+  // generate, then hand the result to the image model itself: "find errors,
+  // fix them, report" — no pre-computed issue list. maxFixes rounds (default
+  // 1), each feeding the previous round's output back; a NO ERRORS reply
+  // keeps the current cells untouched.
+  const seed = cfg.seed;
   // opt-in build log: every step appended as it happens, images inlined
   const report: Reporter | undefined = cfg.report
     ? startReport(join(cfg.output, `${name}.report.md`), `${name} — build report`)
     : undefined;
+  const maxFixes = cfg.check === false ? 0 : Math.max(0, cfg.maxFixes ?? 1);
+  // --intermediate: every pipeline image also lands as a numbered PNG
+  let stepN = 0;
+  const saveStep = async (label: string, img: RawImage | Buffer) => {
+    if (!cfg.intermediate) return;
+    const file = join(cfg.output, `${name}.intermediate`, `${String(++stepN).padStart(2, "0")}-${label}.png`);
+    if (Buffer.isBuffer(img)) writeBytes(file, img);
+    else await writePng(file, img);
+  };
   report?.log([
     `- provider: \`${provider}\``,
     `- seed: \`${seed}\` (${cfg.seedRolled ? "rolled" : "pinned"})`,
     ...(cfg.description ? [`- description: ${cfg.description}`] : []),
     ...(cfg.reference ? [`- reference: \`${cfg.reference}\``] : []),
     `- matting: \`${useToonout ? "toonout" : "floodfill"}\``,
-    `- check: ${cfg.check === false ? "off" : "on"}`,
+    `- review/fix rounds: ${maxFixes}`,
   ].join("\n"));
-  const issuesMd = (issues: SheetCheck["issues"]) =>
-    issues.map((i) => `- ${i.cell ? `**${i.cell}** — ` : ""}${i.note}`).join("\n");
-  let best: { sheet: RawImage; ordered: RawImage[]; seed: number; issues: SheetCheck["issues"] } | undefined;
-  const consider = (cand: NonNullable<typeof best>) => {
-    if (!best || cand.issues.length < best.issues.length) best = cand;
-  };
-  for (let n = 1; ; n++) {
-    const built = await attempt(seed, n > 1 ? ` · retry ${n - 1}` : "");
-    report?.log(`## attempt ${n} — seed \`${seed}\``);
-    await report?.image("generated sheet", built.sheet);
-    const strip = makeSpriteSheet(built.ordered);
-    await report?.image("extracted spritesheet", strip);
-    if (cfg.check === false) { best = { ...built, seed, issues: [] }; break; }
-    let verdict: SheetCheck;
+  report?.log("generation prompt:\n\n```\n" + prompt + "\n```");
+  await report?.image("composed template (model input)", template);
+  await saveStep("template", template);
+
+  const built = await attempt(seed, "");
+  report?.log(`## generation — seed \`${seed}\``);
+  await report?.image("generated sheet", built.sheet);
+  await saveStep("generated-sheet", built.sheet);
+  const { sheet } = built;
+  let ordered = built.ordered;
+  await report?.image("extracted spritesheet", makeSpriteSheet(ordered));
+  await saveStep("spritesheet", makeSpriteSheet(ordered));
+
+  for (let f = 1; f <= maxFixes; f++) {
     try {
-      verdict = await checkSpritesheet(strip, cfg.description);
-    } catch (e) {
-      console.error(`check skipped (${e instanceof Error ? e.message : e})`);
-      report?.log(`check skipped (${e instanceof Error ? e.message : e})`);
-      best = { ...built, seed, issues: [] };
-      break;
-    }
-    if (verdict.ok) {
-      console.error("check: clean");
-      report?.log("check: **clean**");
-      best = { ...built, seed, issues: [] };
-      break;
-    }
-    for (const i of verdict.issues) console.error(`check: ${i.cell ?? "sheet"} — ${i.note}`);
-    report?.log(`check found ${verdict.issues.length} issue(s):\n\n${issuesMd(verdict.issues)}`);
-    consider({ ...built, seed, issues: verdict.issues });
-    try {
-      const progress = startProgress(`${name} · fixing ${verdict.issues.length} issue(s)`, 45_000);
-      let fixed;
+      const progress = startProgress(`${name} · review & fix${maxFixes > 1 ? ` ${f}/${maxFixes}` : ""}`, 45_000);
+      let r;
       try {
-        fixed = await fixSpritesheet(built.ordered, verdict.issues, { ...cfg.model, seed });
+        r = await fixSpritesheet(ordered, cfg.description, { ...cfg.model, seed });
       } finally {
-        progress.done(`${name} · fixed`);
+        progress.done(`${name} · reviewed`);
       }
-      if (fixed.report) console.error(`fix: ${fixed.report.replace(/\s*\n\s*/g, " ")}`);
-      if (fixed.report) report?.log(`fix report: ${fixed.report}`);
-      const ordered = fixed.cells;
-      const fixedStrip = makeSpriteSheet(ordered);
-      await report?.image("spritesheet after fix", fixedStrip);
-      const after = await checkSpritesheet(fixedStrip, cfg.description);
-      if (after.ok) {
-        console.error("check: clean after fix");
-        report?.log("check after fix: **clean**");
-        best = { sheet: built.sheet, ordered, seed, issues: [] };
-        break;
+      report?.log(`## review round ${f}`);
+      report?.png("review input — 3x3 grid", r.gridPng);
+      await saveStep(`review${f}-grid`, r.gridPng);
+      if (r.report) {
+        console.error(`review: ${r.report.replace(/\s*\n\s*/g, " ")}`);
+        report?.log(`review report: ${r.report}`);
       }
-      for (const i of after.issues) console.error(`check (after fix): ${i.cell ?? "sheet"} — ${i.note}`);
-      report?.log(`check after fix — ${after.issues.length} issue(s) remain:\n\n${issuesMd(after.issues)}`);
-      consider({ sheet: built.sheet, ordered, seed, issues: after.issues });
+      if (r.clean) break;
+      ordered = r.cells;
+      if (r.raw) {
+        await report?.image("review output (raw)", r.raw);
+        await saveStep(`review${f}-raw`, r.raw);
+      }
+      await report?.image("spritesheet after fix", makeSpriteSheet(ordered));
+      await saveStep(`review${f}-spritesheet`, makeSpriteSheet(ordered));
     } catch (e) {
-      console.error(`fix skipped (${e instanceof Error ? e.message : e})`);
-      report?.log(`fix skipped (${e instanceof Error ? e.message : e})`);
-    }
-    if (!cfg.seedRolled) {
-      console.error("check: seed is pinned — keeping the build");
-      report?.log("seed is pinned — keeping the build as generated");
+      console.error(`review skipped (${e instanceof Error ? e.message : e})`);
+      report?.log(`review skipped (${e instanceof Error ? e.message : e})`);
       break;
     }
-    if (n >= MAX_ATTEMPTS) {
-      console.error(`check: keeping the cleanest attempt (seed ${best!.seed}, ${best!.issues.length} issue(s))`);
-      break;
-    }
-    seed = Math.floor(Math.random() * 2 ** 31);
   }
-  const { sheet, ordered } = best!;
-  seed = best!.seed;
-  report?.log(`## result — seed \`${seed}\`, ${best!.issues.length} issue(s)`);
+  report?.log(`## result — seed \`${seed}\``);
   await report?.image("final spritesheet", makeSpriteSheet(ordered));
   if (cfg.outputs?.sheet) await writePng(join(cfg.output, cfg.outputs.sheet === true ? `${name}.sheet.png` : cfg.outputs.sheet), sheet);
   await writePng(join(cfg.output, `${name}.spritesheet.png`), makeSpriteSheet(ordered));
@@ -308,11 +304,15 @@ if (cmd === "check") {
   for (const i of verdict.issues) console.log(`${i.cell ?? "sheet"} — ${i.note}`);
   if (!c.fix) process.exit(1);
   const strip = extractAnimation(img, 8, { panel: { x: 0, y: 0, width: img.width, height: img.height } });
-  const { cells, report } = await fixSpritesheet(strip, verdict.issues);
-  if (report) console.error(`fix: ${report.replace(/\s*\n\s*/g, " ")}`);
+  const r = await fixSpritesheet(strip, c.description);
+  if (r.report) console.error(`fix: ${r.report.replace(/\s*\n\s*/g, " ")}`);
+  if (r.clean) {
+    console.log("the image model found nothing to fix");
+    process.exit(1);
+  }
   const out = c.output ?? sheetPath.replace(/\.png$/i, "") + ".fixed.png";
-  await writePng(out, makeSpriteSheet(cells));
-  const after = await checkSpritesheet(makeSpriteSheet(cells), c.description);
+  await writePng(out, makeSpriteSheet(r.cells));
+  const after = await checkSpritesheet(makeSpriteSheet(r.cells), c.description);
   console.log(`${after.ok ? "clean after fix" : `${after.issues.length} issue(s) remain after fix`} -> ${out}`);
   process.exit(after.ok ? 0 : 1);
 }

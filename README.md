@@ -68,12 +68,13 @@ Nano Banana Pro, extracts and keys the sprites, and writes:
 - `fairy.entity.json` — sprite metadata (directions, states, seed)
 - `fairy.sprited.yaml` — flag builds only: the config that reproduces this build
 
-Every build is QC'd: a VLM reviews the sheet (wrong facings, anatomy
-glitches, parts that change shape mid-turnaround, leftover background). On
-defects the views go back to the image model laid out as a labeled 3x3
-compass grid for an in-place repair — same character, defects fixed — and
-failing that, one fresh-seed regeneration. `--no-check` / `check: false`
-skips all of it. The same review runs standalone:
+After generation the views go back to the image model itself, laid out as a
+labeled 3x3 compass grid: *"any errors? fix them and report the changes"*.
+Anatomy glitches, wrong facings, parts that change shape mid-turnaround get
+repaired in place — same character, defects fixed — and the model's text
+report is printed. `--max-fixes N` sets the number of review rounds (default
+1), `--no-check` / `check: false` skips review entirely. A separate
+observational check is available standalone:
 
 ```sh
 npx sprited check sheet.png -d "a fairy"        # report defects, exit 1 if any
@@ -90,8 +91,11 @@ options beyond the basics (flag form / config field form):
 | `--sheet` | `outputs.sheet` | off | keep the raw generated sheet as `<name>.sheet.png` |
 | `--template` | `template` | `8dir-v1` (bundled) | a builtin template name; config form also takes a full `{image, inputSlot, grid}` spec |
 | `--provider` | `model.provider` | `gemini` | also: `novita-seedream`, `novita-qwen` (need `NOVITA_API_KEY`) |
-| `--no-check` | `check: false` | check on | skip the post-generation VLM QC + auto-repair |
+| `--matting` | `matting` | `floodfill` | `toonout` = BiRefNet anime matting via Replicate (needs `REPLICATE_API_TOKEN`; best edges on hair/translucency) |
+| `--no-check` | `check: false` | review on | skip the post-generation review/fix |
+| `--max-fixes N` | `maxFixes` | `1` | review/fix rounds per build; each round feeds the previous round's output back |
 | `--report` | `report: true` | off | stream a build log to `<name>.report.md` with every generated image inlined as a data URI |
+| `--intermediate` | `intermediate: true` | off | write every intermediate image as numbered PNGs under `<name>.intermediate/` |
 
 Already have a filled sheet, or an animation strip? Extract directly:
 

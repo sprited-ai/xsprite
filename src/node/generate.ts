@@ -323,24 +323,30 @@ function sliceFixGrid(img: RawImage, cellWidth: number, cellHeight: number, barH
   return out;
 }
 
-/** Targeted repair: hand the defective views back to the image model (NBP
- * edits in place, preserving identity — unlike a fresh-seed regen) with the
- * issue list, get corrected cells + a text report of what changed. */
+/** Self-review repair: hand the views to the image model with an open "find
+ * errors, fix them, report" brief — the model spots and repairs defects in
+ * one pass, no pre-computed issue list. When it answers NO ERRORS the
+ * original cells are returned untouched (re-slicing a no-op edit would only
+ * add pixel drift). */
 export async function fixSpritesheet(
-  cells: RawImage[], issues: SheetCheck["issues"], opts: GenerateOptions = {},
-): Promise<{ cells: RawImage[]; report?: string }> {
+  cells: RawImage[], description?: string, opts: GenerateOptions = {},
+): Promise<{ cells: RawImage[]; report?: string; clean: boolean; gridPng: Buffer; raw?: RawImage }> {
   const model = opts.model ?? DEFAULT_MODEL.gemini;
   const key = apiKey(opts.envKey ?? "GEMINI_API_KEY");
   const { width: cw, height: ch } = cells[0];
   const barH = Math.max(24, Math.round(ch * 0.1));
-  const b64 = (await buildFixGrid(cells, barH)).toString("base64");
+  const gridPng = await buildFixGrid(cells, barH);
+  const b64 = gridPng.toString("base64");
   const prompt =
     "This is a 3x3 grid of views of one game character; the label under each view names its " +
-    "facing direction, the center cell is empty.\nThe views have these defects:\n" +
-    issues.map((i) => `- ${i.cell ? `${i.cell}: ` : ""}${i.note}`).join("\n") +
-    "\nFix the defects. Keep everything else exactly as it is: same character, same art style, " +
-    "same pose and facing per view, same grid layout, same labels, same image size, same background. " +
-    "Also describe briefly, as text, what you changed.";
+    "facing direction, the center cell is empty." +
+    (description ? ` The character: ${description}.` : "") +
+    "\nCan you look at the image and see if there are any errors — anatomy glitches, a view facing " +
+    "the wrong direction for its label, parts (wings, tail, hat, ...) that change size, shape, or " +
+    "style between views, leftover background, cropped heads or feet?\n" +
+    "If there are errors, fix them and report the changes in text. Keep everything else exactly " +
+    "as it is: same character, same art style, same grid layout, same labels, same image size, " +
+    'same background. If there are no errors, reply with the text "NO ERRORS".';
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
@@ -367,7 +373,9 @@ export async function fixSpritesheet(
       if (d) image = await decodeImage(Buffer.from(d.data, "base64"));
       if (part.text) report += part.text;
     }
-    if (image) return { cells: sliceFixGrid(image, cw, ch, barH), report: report.trim() || undefined };
+    const text = report.trim() || undefined;
+    if (/\bno errors?\b/i.test(report)) return { cells, report: text, clean: true, gridPng, raw: image };
+    if (image) return { cells: sliceFixGrid(image, cw, ch, barH), report: text, clean: false, gridPng, raw: image };
     if (attempt >= 1) throw new Error("fix: model returned no image");
   }
 }

@@ -1,6 +1,7 @@
 {
-  "id": "monet-d34e72dd",
+  "id": "monet-31bfe92e",
   "name": "monet",
+  "seed": 834660654,
   "kind": "humanoid",
   "initialState": "idle",
   "textureSize": [

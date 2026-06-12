@@ -1,7 +1,6 @@
 # photo-reference-driven character via NBP
-# matting: toonout = BiRefNet anime matting via Replicate (REPLICATE_API_TOKEN);
-# omit for the built-in floodfill keyer
+# matting defaults to toonout: BiRefNet-ToonOut running locally via
+# onnxruntime; set `matting: floodfill` for the dependency-free keyer
 name: blue-dress
 reference: ./blue-dress.reference.png
-matting: toonout
 outputs: { sheet: true }

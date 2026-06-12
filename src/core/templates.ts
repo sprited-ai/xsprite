@@ -16,8 +16,10 @@ export interface TemplateGeometry {
 }
 
 export const TEMPLATE_GEOMETRY: Record<string, TemplateGeometry> = {
-  // v1 and v2 share the layout pixel-for-pixel; v2's worked example is a
-  // cleaner render of the same character
+  // v1 and v2 share the layout pixel-for-pixel and differ only in the worked
+  // example's rendering: v2 is crisper, v1 is softer. v1 is the default —
+  // the slight fuzz reads as depth/volume in the generated characters
+  // (Jin's call, 2026-06-12); v2 via `template: 8dir-v2`.
   "8dir-v1": {
     inputSlot: { x: 32, y: 352, width: 160, height: 256 },
     grid: { x: 192, y: 352, cellWidth: 160, cellHeight: 256, columns: 5 },

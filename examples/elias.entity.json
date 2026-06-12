@@ -1,7 +1,7 @@
 {
-  "id": "lisa-2bd98bc4",
-  "name": "lisa",
-  "seed": 735677380,
+  "id": "elias-19d187d9",
+  "name": "elias",
+  "seed": 433162201,
   "kind": "humanoid",
   "initialState": "idle",
   "textureSize": [
@@ -26,7 +26,7 @@
     ]
   },
   "spritesheet": {
-    "texture": "lisa.spritesheet.png",
+    "texture": "elias.spritesheet.png",
     "cellWidth": 160,
     "cellHeight": 256
   },
@@ -38,7 +38,7 @@
   },
   "animations": {
     "idle": {
-      "texture": "lisa.spritesheet.png",
+      "texture": "elias.spritesheet.png",
       "directional": true,
       "frames": [
         0
@@ -47,6 +47,6 @@
     }
   },
   "media": {
-    "turntable": "lisa.turntable.webp"
+    "turntable": "elias.turntable.webp"
   }
 }

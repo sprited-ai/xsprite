@@ -89,7 +89,7 @@ options beyond the basics (flag form / config field form):
 | `--seed N` | `seed` | random | a number reproduces a build; the seed used is recorded in `<name>.entity.json` |
 | `-o dir` | `output` | `./outputs` / config's directory | where outputs land |
 | `--sheet` | `outputs.sheet` | off | keep the raw generated sheet as `<name>.sheet.png` |
-| `--template` | `template` | `8dir-v2` (bundled) | a builtin template name (`8dir-v1`, `8dir-v2`); config form also takes a full `{image, inputSlot, grid}` spec |
+| `--template` | `template` | `8dir-v1` (bundled) | a builtin template name (`8dir-v1`, `8dir-v2`); config form also takes a full `{image, inputSlot, grid}` spec |
 | `--provider` | `model.provider` | `gemini` | also: `novita-seedream`, `novita-qwen` (need `NOVITA_API_KEY`) |
 | `--matting` | `matting` | `toonout` | BiRefNet-ToonOut anime matting, run locally via onnxruntime (~440MB model auto-downloaded to `~/.cache/sprited` on first use); falls back to the Replicate endpoint (`REPLICATE_API_TOKEN`), then `floodfill`. `floodfill` = fast, dependency-free |
 | `--no-check` | `check: false` | review on | skip the post-generation review/fix |

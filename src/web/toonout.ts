@@ -22,16 +22,16 @@ async function fetchModel(url: string): Promise<ArrayBuffer> {
   return (await fetch(url)).arrayBuffer();
 }
 
-function session(modelUrl: string): Promise<{ ort: any; sess: any }> {
+function session(modelUrl: string, eps: string[]): Promise<{ ort: any; sess: any }> {
   return (cached ??= (async () => {
     const m: any = await import("onnxruntime-web");
     const ort = m.default ?? m;
     const model = new Uint8Array(await fetchModel(modelUrl));
-    for (const ep of ["webgpu", "wasm"]) {
+    for (const ep of eps) {
       try {
         return { ort, sess: await ort.InferenceSession.create(model, { executionProviders: [ep] }) };
       } catch (e) {
-        if (ep === "wasm") throw e;
+        if (ep === eps[eps.length - 1]) throw e;
       }
     }
     throw new Error("unreachable");
@@ -39,8 +39,17 @@ function session(modelUrl: string): Promise<{ ort: any; sess: any }> {
 }
 
 /** Matte cells through BiRefNet-ToonOut, fully client-side. */
-export async function toonoutMatting(cells: RawImage[], modelUrl: string = TOONOUT_MODEL_URL): Promise<RawImage[]> {
-  const { ort, sess } = await session(modelUrl);
+export interface ToonoutOptions {
+  modelUrl?: string;
+  /** EP order. KNOWN ISSUES (Chrome 143, ort-web 1.26, fp16 model): webgpu
+   * runs but returns compressed mask values (~0.3-0.5 instead of 0/1 —
+   * suspected fp16 precision in JSEP shaders); wasm hits the 32-bit heap
+   * wall (std::bad_alloc). Next experiment: the fp32 model on webgpu. */
+  eps?: string[];
+}
+
+export async function toonoutMatting(cells: RawImage[], opts: ToonoutOptions = {}): Promise<RawImage[]> {
+  const { ort, sess } = await session(opts.modelUrl ?? TOONOUT_MODEL_URL, opts.eps ?? ["webgpu", "wasm"]);
   const out: RawImage[] = [];
   for (const cell of cells) {
     const chw = toonoutPreprocess(cell);

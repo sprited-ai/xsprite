@@ -11,9 +11,9 @@ function draw(id: string, img: RawImage) {
 }
 
 async function loadCell(): Promise<RawImage> {
-  const img = new Image();
-  img.src = "./lisa.spritesheet.png";
-  await img.decode();
+  // fetch + createImageBitmap — Image.decode() can stall in background tabs
+  const blob = await (await fetch("./lisa.spritesheet.png")).blob();
+  const img = await createImageBitmap(blob);
   const c = new OffscreenCanvas(img.width, img.height);
   const ctx = c.getContext("2d")!;
   ctx.drawImage(img, 0, 0);
@@ -30,7 +30,8 @@ try {
   draw("before", cell);
   log("fetching model (~470MB, cached after first load)…");
   const t0 = performance.now();
-  const [matted] = await toonoutMatting([cell]);
+  const ep = new URLSearchParams(location.search).get("ep");
+  const [matted] = await toonoutMatting([cell], ep ? { eps: [ep] } : {});
   const ms = Math.round(performance.now() - t0);
   draw("after", matted);
   const transparent = Array.from({ length: matted.width * matted.height })
